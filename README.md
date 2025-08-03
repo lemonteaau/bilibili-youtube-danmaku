@@ -1,4 +1,4 @@
-# B站弹幕 → YouTube 弹幕显示助手
+# B2Y - YouTube 同步显示 Bilibili 弹幕
 
 > 自动将Bilibili的弹幕同步显示在YouTube视频上
 
