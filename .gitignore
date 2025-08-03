@@ -1,0 +1,6 @@
+
+# YoYo AI version control directory
+.yoyo/
+.DS_Store
+assets/create-icons.html
+.vscode/

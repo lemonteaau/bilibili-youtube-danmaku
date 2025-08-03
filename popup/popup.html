@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B站弹幕设置</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <!-- 非YouTube页面的简化界面 -->
+    <div class="simple-container" id="simple-container" style="display: none;">
+        <div class="simple-content">
+            <h2>当前不是 Youtube 页面哦</h2>
+            <!-- 社交图标区域 -->
+            <div class="social-icons" id="social-icons-simple" style="display: none;">
+            </div>
+            <button id="open-youtube-btn" class="youtube-btn">打开 YouTube</button>
+        </div>
+    </div>
+
+    <!-- 原有的完整功能界面 -->
+    <div class="container" id="main-container">
+        <h1>B站弹幕 → YouTube</h1>
+        
+        <!-- 社交图标区域 -->
+        <div class="social-icons" id="social-icons" style="display: none;">
+        </div>
+        
+        <!-- YouTube频道信息展示 -->
+        <div class="channel-info" id="channel-info" style="display: none;">
+            <div class="channel-header">
+                <img id="channel-avatar" src="" alt="频道头像" class="channel-avatar">
+                <div class="channel-details">
+                    <h3 id="channel-name">频道名称</h3>
+                    <p id="channel-id">频道ID</p>
+                </div>
+                <div class="association-status" id="association-status">
+                    <span class="status-text">未关联</span>
+                    <div class="associated-info" id="associated-info" style="display: none;">
+                        <span class="associated-icon"></span>
+                        <span class="associated-uid" id="associated-uid">已关联：</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- B站UP主关联区域 -->
+        <div class="association-section" id="association-section" style="display: none;">
+            <div class="association-header">
+                <h3>关联B站UP主</h3>
+            </div>
+            <div class="association-input">
+                <input type="text" id="bilibili-space-url" placeholder="https://space.bilibili.com/339233162">
+                <button id="associate-btn">关联</button>
+            </div>
+            <div class="association-info" id="association-info" style="display: none;">
+                <p>已关联：<span id="associated-up-name"></span></p>
+                <button id="auto-search-btn">自动搜索弹幕</button>
+                <button id="unassociate-btn">取消关联</button>
+            </div>
+        </div>
+        
+        <!-- 自动搜索结果 -->
+        <div class="search-results" id="search-results" style="display: none;">
+            <h3>搜索结果</h3>
+            <div id="search-status"></div>
+            <div id="search-list"></div>
+        </div>
+        
+        <!-- 手动输入区域 -->
+        <div class="manual-input" id="manual-input">
+            <div class="input-group">
+                <label for="bilibili-url" id="bilibili-url-label">或手动输入B站视频链接：</label>
+                <input type="text" id="bilibili-url" placeholder="https://www.bilibili.com/video/BVxxxxxx">
+                <div class="button-group">
+                    <button id="view-bilibili-btn" style="display: none;">在B站查看</button>
+                    <button id="view-bilibili-space-btn" style="display: none;">查看 B站空间</button>
+                    <button id="download-btn">手动匹配</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar" id="status-bar"></div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="enable-danmaku" checked>
+                    启用弹幕
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label for="time-offset">时间轴偏移：</label>
+                <input type="range" id="time-offset" min="-60" max="60" value="0" step="0.1">
+                <span id="offset-value">0s</span>
+            </div>
+
+            <div class="control-group">
+                <label for="opacity">透明度：</label>
+                <input type="range" id="opacity" min="0" max="100" value="100" step="5">
+                <span id="opacity-value">100%</span>
+            </div>
+
+            <div class="control-group">
+                <label for="font-size">字体大小：</label>
+                <input type="range" id="font-size" min="16" max="48" value="24" step="2">
+                <span id="font-size-value">24px</span>
+            </div>
+
+            <div class="control-group">
+                <label for="speed">滚动速度：</label>
+                <input type="range" id="speed" min="0.5" max="2" value="1" step="0.1">
+                <span id="speed-value">1.0x</span>
+            </div>
+
+            <div class="control-group">
+                <label for="track-spacing">弹幕垂直间距：</label>
+                <input type="range" id="track-spacing" min="0" max="20" value="8" step="1">
+                <span id="track-spacing-value">8px</span>
+            </div>
+
+            <div class="control-group">
+                <label>显示区域：</label>
+                <div class="display-area-buttons">
+                    <button type="button" class="display-area-btn" data-value="25">25%</button>
+                    <button type="button" class="display-area-btn" data-value="50">50%</button>
+                    <button type="button" class="display-area-btn" data-value="75">75%</button>
+                    <button type="button" class="display-area-btn active" data-value="100">100%</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="weight-threshold">智能过滤：</label>
+                <input type="range" id="weight-threshold" min="0" max="10" value="5" step="1">
+                <span id="weight-threshold-value">5（过滤等级）</span>
+            </div>
+        </div>
+
+        <div class="danmaku-info" id="danmaku-info"></div>
+
+        <div class="danmaku-list-container" id="danmaku-list-container">
+            <div class="danmaku-list-header">
+                <div class="danmaku-list-title">
+                    <h3>弹幕列表</h3>
+                </div>
+                <input type="text" id="danmaku-search" placeholder="搜索弹幕...">
+            </div>
+            <div class="danmaku-list" id="danmaku-list"></div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

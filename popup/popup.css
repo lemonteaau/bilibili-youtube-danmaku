@@ -1,0 +1,930 @@
+body {
+    margin: 0;
+    padding: 0;
+    width: 400px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f5f5f5;
+}
+
+/* 简化界面样式 */
+.simple-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+.simple-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+}
+
+.simple-content h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+    font-weight: 400;
+}
+
+.youtube-btn {
+    background-color: #FF0000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 2px 4px rgba(255, 0, 0, 0.2);
+}
+
+.youtube-btn:hover {
+    background-color: #CC0000;
+    box-shadow: 0 3px 6px rgba(255, 0, 0, 0.3);
+}
+
+.youtube-btn:active {
+    background-color: #AA0000;
+    transform: translateY(1px);
+}
+
+.container {
+    padding: 16px;
+}
+
+h1 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    color: #333;
+    text-align: center;
+}
+
+/* 社交图标样式 */
+.social-icons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin: -8px 0 16px 0;
+    padding: 0;
+}
+
+.social-icon {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    overflow: visible;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.social-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.social-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+/* 黑白滤镜效果 */
+.social-icons.grayscale-filter .social-icon img {
+    filter: grayscale(1);
+}
+
+.social-icons.grayscale-filter .social-icon:hover img {
+    filter: grayscale(0);
+}
+
+/* Tooltip 样式 */
+.social-icon::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.social-icon::after {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.social-icon:hover::before,
+.social-icon:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* YouTube频道信息样式 */
+.channel-info {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.channel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.channel-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.channel-details {
+    flex: 1;
+}
+
+.channel-details h3 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+.channel-details p {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+}
+
+.association-status {
+    text-align: right;
+}
+
+.associated-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: #00a1d6;
+    color: white;
+    font-size: 12px;
+    transition: background-color 0.3s;
+    min-width: 130px;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.associated-info:hover {
+    background: #d32f2f;
+}
+
+.associated-info:hover .associated-icon::before {
+    content: "×";
+    width: 12px;
+    height: 12px;
+    border: none;
+    border-radius: 0;
+    background: none;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 12px;
+    text-align: center;
+    top: 0;
+    left: 0;
+    transform: none;
+}
+
+.associated-info:hover .associated-icon::after {
+    display: none;
+}
+
+.associated-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    position: relative;
+}
+
+.associated-icon::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 0;
+    width: 6px;
+    height: 6px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    background: none;
+}
+
+.associated-icon::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    right: 0;
+    width: 6px;
+    height: 6px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    background: none;
+}
+
+.associated-uid {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-text {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: #e8e8e8;
+    color: #666;
+}
+
+.status-text.associated {
+    background: #00a1d6;
+    color: white;
+}
+
+/* B站UP主关联区域样式 */
+.association-section {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.association-header h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #333;
+}
+
+.association-input {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.association-input input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.association-input button {
+    padding: 8px 12px;
+    background: #00a1d6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.association-input button:hover {
+    background: #0087c0;
+}
+
+.association-info {
+    padding: 8px;
+    background: #f0f8ff;
+    border-radius: 4px;
+    border-left: 3px solid #2196F3;
+}
+
+.association-info p {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: #333;
+}
+
+.association-info button {
+    margin-right: 8px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#auto-search-btn {
+    background: #00a1d6;
+    color: white;
+}
+
+#auto-search-btn:hover {
+    background: #0087c0;
+}
+
+#unassociate-btn {
+    background: #f44336;
+    color: white;
+}
+
+#unassociate-btn:hover {
+    background: #da190b;
+}
+
+/* 搜索结果样式 */
+.search-results {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.search-results h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #333;
+}
+
+#search-status {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.search-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    gap: 8px;
+}
+
+.search-item:hover {
+    background-color: #f5f5f5;
+}
+
+.search-item.loading {
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+}
+
+.search-item.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ddd;
+    border-top: 2px solid #00a1d6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translateY(-50%);
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+.search-item-cover {
+    flex-shrink: 0;
+    width: 60px;
+    height: 45px;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #f0f0f0;
+}
+
+.search-item-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.search-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-item-title {
+    font-size: 12px;
+    color: #333;
+    margin-bottom: 4px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-item-info {
+    font-size: 10px;
+    color: #999;
+}
+
+/* 手动输入区域样式 */
+.manual-input {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.input-group {
+    margin-bottom: 12px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    color: #666;
+}
+
+.input-group input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.button-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.input-group button {
+    flex: 1;
+    padding: 10px;
+    background-color: #00a1d6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#view-bilibili-btn {
+    background-color: #fb7299;
+    flex: 0 0 auto;
+    min-width: 100px;
+}
+
+#view-bilibili-btn:hover {
+    background-color: #f25d8e;
+}
+
+.input-group button:hover {
+    background-color: #0087c0;
+}
+
+.input-group button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.status-bar {
+    margin: 12px 0;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    text-align: center;
+    display: none;
+}
+
+.status-bar.show {
+    display: block;
+}
+
+.status-bar.success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-bar.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-bar.loading {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-bar.info {
+    background-color: #cce5ff;
+    color: #0066cc;
+}
+
+.controls {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #ddd;
+}
+
+.control-group {
+    margin-bottom: 12px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    color: #666;
+}
+
+.control-group input[type="checkbox"] {
+    margin-right: 6px;
+}
+
+.control-group input[type="range"] {
+    width: 70%;
+    vertical-align: middle;
+}
+
+.control-group span {
+    margin-left: 8px;
+    font-size: 13px;
+    color: #999;
+}
+
+/* 显示区域按钮组样式 */
+.display-area-buttons {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.display-area-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #666;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.display-area-btn:hover {
+    border-color: #00a1d6;
+    color: #00a1d6;
+}
+
+.display-area-btn.active {
+    background: #00a1d6;
+    border-color: #00a1d6;
+    color: white;
+}
+
+.display-area-btn:active {
+    transform: translateY(1px);
+}
+
+.danmaku-info {
+    margin-top: 12px;
+    padding: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #666;
+    display: none;
+}
+
+.danmaku-info.show {
+    display: block;
+}
+
+.danmaku-list-container {
+    margin-top: 16px;
+    display: none;
+}
+
+.danmaku-list-container.show {
+    display: block;
+}
+
+.danmaku-list-header {
+    margin-bottom: 8px;
+}
+
+.danmaku-list-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.danmaku-list-header input {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.danmaku-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+.danmaku-item {
+    padding: 8px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.danmaku-item:hover {
+    background-color: #f5f5f5;
+}
+
+.danmaku-item:last-child {
+    border-bottom: none;
+}
+
+.danmaku-time {
+    display: inline-block;
+    width: 60px;
+    color: #00a1d6;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.danmaku-text {
+    color: #666;
+    font-size: 13px;
+}
+
+/* 黑暗模式自适应 */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+    
+    .simple-container {
+        background-color: #1a1a1a;
+    }
+    
+    .simple-content h2 {
+        color: #e0e0e0;
+    }
+    
+    .container {
+        background-color: #1a1a1a;
+    }
+    
+    h1 {
+        color: #e0e0e0;
+    }
+    
+    /* 社交图标深色模式 */
+    .social-icon {
+        background: #3a3a3a;
+    }
+    
+    .social-icon:hover {
+        background: #444444;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    
+    .social-icon::before {
+        background: rgba(255, 255, 255, 0.95);
+        color: #1a1a1a;
+        box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+    }
+    
+    .social-icon::after {
+        border-top-color: rgba(255, 255, 255, 0.95);
+    }
+    
+    /* 卡片背景 */
+    .channel-info,
+    .association-section,
+    .search-results,
+    .manual-input {
+        background: #2d2d2d;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    /* 频道信息 */
+    .channel-details h3 {
+        color: #e0e0e0;
+    }
+    
+    .channel-details p {
+        color: #b0b0b0;
+    }
+    
+    .status-text {
+        background: #3a3a3a;
+        color: #b0b0b0;
+    }
+    
+    .status-text.associated {
+        background: #00a1d6;
+        color: white;
+    }
+    
+    /* 标题 */
+    .association-header h3,
+    .search-results h3 {
+        color: #e0e0e0;
+    }
+    
+    /* 输入框 */
+    .association-input input,
+    .input-group input[type="text"],
+    .danmaku-list-header input {
+        background: #3a3a3a;
+        border: 1px solid #555;
+        color: #e0e0e0;
+    }
+    
+    .association-input input::placeholder,
+    .input-group input[type="text"]::placeholder,
+    .danmaku-list-header input::placeholder {
+        color: #888;
+    }
+    
+    /* 信息框 */
+    .association-info {
+        background: #2a3a4a;
+        border-left: 3px solid #2196F3;
+    }
+    
+    .association-info p {
+        color: #e0e0e0;
+    }
+    
+    /* 搜索状态和项目 */
+    #search-status {
+        color: #b0b0b0;
+    }
+    
+    .search-item {
+        border: 1px solid #444;
+        background: #2d2d2d;
+    }
+    
+    .search-item:hover {
+        background-color: #3a3a3a;
+    }
+    
+    .search-item-cover {
+        background-color: #3a3a3a;
+    }
+    
+    .search-item-title {
+        color: #e0e0e0;
+    }
+    
+    .search-item-info {
+        color: #888;
+    }
+    
+    /* 标签 */
+    .control-group label,
+    .input-group label {
+        color: #b0b0b0;
+    }
+    
+    .control-group span {
+        color: #888;
+    }
+    
+    /* 状态栏 */
+    .status-bar.success {
+        background-color: #1a4a2e;
+        color: #4ade80;
+    }
+    
+    .status-bar.error {
+        background-color: #4a1a1a;
+        color: #f87171;
+    }
+    
+    .status-bar.loading {
+        background-color: #1a3a4a;
+        color: #60a5fa;
+    }
+    
+    .status-bar.info {
+        background-color: #1a2a4a;
+        color: #60a5fa;
+    }
+    
+    /* 弹幕信息 */
+    .danmaku-info {
+        background-color: #2a2a2a;
+        color: #b0b0b0;
+    }
+    
+    /* 弹幕列表 */
+    .danmaku-list {
+        border: 1px solid #444;
+        background-color: #2d2d2d;
+    }
+    
+    .danmaku-item {
+        border-bottom: 1px solid #3a3a3a;
+    }
+    
+    .danmaku-item:hover {
+        background-color: #3a3a3a;
+    }
+    
+    .danmaku-time {
+        color: #60a5fa;
+    }
+    
+    .danmaku-text {
+        color: #b0b0b0;
+    }
+    
+    /* 显示区域按钮组 */
+    .display-area-btn {
+        border: 1px solid #555;
+        background: #3a3a3a;
+        color: #b0b0b0;
+    }
+    
+    .display-area-btn:hover {
+        border-color: #00a1d6;
+        color: #60a5fa;
+        background: #2a2a2a;
+    }
+    
+    .display-area-btn.active {
+        background: #00a1d6;
+        border-color: #00a1d6;
+        color: white;
+    }
+    
+    /* 分割线 */
+    .controls {
+        border-top: 1px solid #444;
+    }
+}

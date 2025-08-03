@@ -1,0 +1,1003 @@
+// 获取当前标签页信息
+async function getCurrentTab() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab;
+}
+
+// 解析B站视频ID
+function parseBilibiliUrl(url) {
+    const match = url.match(/bilibili\.com\/video\/(BV\w+)/);
+    return match ? match[1] : null;
+}
+
+// 获取YouTube视频ID
+function getYouTubeVideoId(url) {
+    const match = url.match(/[?&]v=([^&]+)/);
+    return match ? match[1] : null;
+}
+
+// 加载社交图标配置
+async function loadSocialIconsConfig() {
+    try {
+        // 默认配置（作为fallback）
+        const defaultConfig = {
+            enableGrayscaleFilter: false,
+            socialLinks: []
+        };
+        
+        // 可以在这里添加远程配置URL
+        const configUrl = 'https://raw.githubusercontent.com/ahaduoduoduo/bilibili-youtube-danmaku/refs/heads/main/social-config.json'; // 例如: 'https://example.com/social-config.json'
+        
+        if (configUrl) {
+            try {
+                const response = await fetch(configUrl);
+                if (response.ok) {
+                    const config = await response.json();
+                    return config;
+                }
+            } catch (error) {
+                console.log('远程配置加载失败，使用默认配置:', error);
+            }
+        }
+        
+        return defaultConfig;
+    } catch (error) {
+        console.error('加载社交图标配置失败:', error);
+        return { enableGrayscaleFilter: false, socialLinks: [] };
+    }
+}
+
+// 渲染社交图标
+function renderSocialIcons(config) {
+    const socialIconsContainer = document.getElementById('social-icons');
+    const socialIconsSimpleContainer = document.getElementById('social-icons-simple');
+    
+    const containers = [socialIconsContainer, socialIconsSimpleContainer].filter(Boolean);
+    
+    if (!config || !config.socialLinks || config.socialLinks.length === 0) {
+        containers.forEach(container => {
+            container.style.display = 'none';
+        });
+        return;
+    }
+    
+    containers.forEach(container => {
+        // 清空容器
+        container.innerHTML = '';
+        
+        // 应用滤镜设置
+        if (config.enableGrayscaleFilter) {
+            container.classList.add('grayscale-filter');
+        } else {
+            container.classList.remove('grayscale-filter');
+        }
+        
+        // 渲染每个图标
+        config.socialLinks.forEach(link => {
+            const iconElement = document.createElement('div');
+            iconElement.className = 'social-icon';
+            const tooltipText = link.tooltip || link.name;
+            iconElement.setAttribute('data-tooltip', tooltipText);
+            
+            const imgElement = document.createElement('img');
+            imgElement.src = link.icon;
+            imgElement.alt = link.name;
+            imgElement.onerror = () => {
+                // 如果图片加载失败，隐藏该图标
+                iconElement.style.display = 'none';
+            };
+            
+            iconElement.appendChild(imgElement);
+            
+            // 添加点击事件
+            iconElement.addEventListener('click', () => {
+                if (link.url) {
+                    chrome.tabs.create({ url: link.url });
+                }
+            });
+            
+            container.appendChild(iconElement);
+        });
+        
+        // 显示容器
+        container.style.display = 'flex';
+    });
+}
+
+// 初始化社交图标
+async function initSocialIcons() {
+    try {
+        const config = await loadSocialIconsConfig();
+        renderSocialIcons(config);
+    } catch (error) {
+        console.error('初始化社交图标失败:', error);
+    }
+}
+
+// 显示状态信息
+function showStatus(message, type = 'loading') {
+    const statusBar = document.getElementById('status-bar');
+    statusBar.textContent = message;
+    statusBar.className = `status-bar show ${type}`;
+    
+    if (type !== 'loading') {
+        setTimeout(() => {
+            statusBar.classList.remove('show');
+        }, 3000);
+    }
+}
+
+// 更新弹幕信息
+function updateDanmakuInfo(count) {
+    const info = document.getElementById('danmaku-info');
+    if (count > 0) {
+        info.textContent = `已加载 ${count} 条弹幕`;
+        info.classList.add('show');
+    } else {
+        info.classList.remove('show');
+    }
+}
+
+// 获取显示区域按钮组的值
+function getDisplayAreaValue() {
+    const activeBtn = document.querySelector('.display-area-btn.active');
+    return parseInt(activeBtn ? activeBtn.dataset.value : '100');
+}
+
+// 设置显示区域按钮组的值
+function setDisplayAreaValue(value) {
+    // 移除所有按钮的选中状态
+    document.querySelectorAll('.display-area-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 设置对应按钮为选中状态
+    const targetBtn = document.querySelector(`.display-area-btn[data-value="${value}"]`);
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+    }
+}
+
+// 保存设置
+async function saveSettings() {
+    const settings = {
+        enabled: document.getElementById('enable-danmaku').checked,
+        timeOffset: parseFloat(document.getElementById('time-offset').value),
+        opacity: parseInt(document.getElementById('opacity').value),
+        fontSize: parseInt(document.getElementById('font-size').value),
+        speed: parseFloat(document.getElementById('speed').value),
+        trackSpacing: parseInt(document.getElementById('track-spacing').value),
+        displayAreaPercentage: getDisplayAreaValue(),
+        weightThreshold: parseInt(document.getElementById('weight-threshold').value)
+    };
+    
+    await chrome.storage.local.set({ danmakuSettings: settings });
+    
+    // 通知content script更新设置
+    const tab = await getCurrentTab();
+    if (tab && tab.url.includes('youtube.com')) {
+        chrome.tabs.sendMessage(tab.id, {
+            type: 'updateSettings',
+            settings: settings
+        });
+    }
+}
+
+// 加载设置
+async function loadSettings() {
+    const result = await chrome.storage.local.get('danmakuSettings');
+    const settings = result.danmakuSettings || {
+        enabled: true,
+        timeOffset: 0,
+        opacity: 100,
+        fontSize: 24,
+        speed: 1.0,
+        trackSpacing: 8,
+        displayAreaPercentage: 100,
+        weightThreshold: 5
+    };
+    
+    document.getElementById('enable-danmaku').checked = settings.enabled;
+    document.getElementById('time-offset').value = settings.timeOffset;
+    document.getElementById('opacity').value = settings.opacity;
+    document.getElementById('font-size').value = settings.fontSize;
+    document.getElementById('speed').value = settings.speed || 1.0;
+    document.getElementById('track-spacing').value = settings.trackSpacing || 8;
+    setDisplayAreaValue(settings.displayAreaPercentage || 100);
+    document.getElementById('weight-threshold').value = settings.weightThreshold ?? 5;
+    
+    updateSliderValues();
+}
+
+// 更新滑块显示值
+function updateSliderValues() {
+    document.getElementById('offset-value').textContent = 
+        document.getElementById('time-offset').value + 's';
+    document.getElementById('opacity-value').textContent = 
+        document.getElementById('opacity').value + '%';
+    document.getElementById('font-size-value').textContent = 
+        document.getElementById('font-size').value + 'px';
+    document.getElementById('speed-value').textContent = 
+        document.getElementById('speed').value + 'x';
+    document.getElementById('track-spacing-value').textContent = 
+        document.getElementById('track-spacing').value + 'px';
+    
+    const weightValue = document.getElementById('weight-threshold').value;
+    document.getElementById('weight-threshold-value').textContent = 
+        weightValue === '0' ? '0（显示全部）' : `不显示${weightValue}级以下`;
+}
+
+// 下载弹幕
+async function downloadDanmaku() {
+    const url = document.getElementById('bilibili-url').value.trim();
+    if (!url) {
+        showStatus('请输入B站视频链接', 'error');
+        return;
+    }
+    
+    const bvid = parseBilibiliUrl(url);
+    if (!bvid) {
+        showStatus('无效的B站视频链接', 'error');
+        return;
+    }
+    
+    const tab = await getCurrentTab();
+    if (!tab || !tab.url.includes('youtube.com/watch')) {
+        showStatus('请在YouTube视频页面使用', 'error');
+        return;
+    }
+    
+    const youtubeVideoId = getYouTubeVideoId(tab.url);
+    if (!youtubeVideoId) {
+        showStatus('无法获取YouTube视频ID', 'error');
+        return;
+    }
+    
+    const downloadBtn = document.getElementById('download-btn');
+    downloadBtn.disabled = true;
+    showStatus('正在获取弹幕数据...', 'loading');
+    
+    try {
+        // 发送消息给background script下载弹幕
+        const response = await chrome.runtime.sendMessage({
+            type: 'downloadDanmaku',
+            bvid: bvid,
+            youtubeVideoId: youtubeVideoId
+        });
+        
+        if (response.success) {
+            showStatus(`成功下载 ${response.count} 条弹幕`, 'success');
+            updateDanmakuInfo(response.count);
+            
+            // 重新加载当前页面的弹幕数据
+            await checkCurrentPageDanmaku();
+            
+            // 通知content script加载弹幕
+            chrome.tabs.sendMessage(tab.id, {
+                type: 'loadDanmaku',
+                youtubeVideoId: youtubeVideoId
+            });
+        } else {
+            showStatus(response.error || '下载失败', 'error');
+        }
+    } catch (error) {
+        showStatus('下载出错：' + error.message, 'error');
+    } finally {
+        downloadBtn.disabled = false;
+    }
+}
+
+// 检查当前页面弹幕状态
+async function checkCurrentPageDanmaku() {
+    const tab = await getCurrentTab();
+    if (!tab || !tab.url.includes('youtube.com/watch')) {
+        updateManualInputUI(false);
+        return;
+    }
+    
+    const youtubeVideoId = getYouTubeVideoId(tab.url);
+    if (!youtubeVideoId) {
+        updateManualInputUI(false);
+        return;
+    }
+    
+    // 检查是否已有弹幕数据
+    const result = await chrome.storage.local.get(youtubeVideoId);
+    if (result[youtubeVideoId] && result[youtubeVideoId].danmakus) {
+        const data = result[youtubeVideoId];
+        document.getElementById('bilibili-url').value = data.bilibili_url || '';
+        updateDanmakuInfo(data.danmakus.length);
+        displayDanmakuList(data.danmakus);
+        updateManualInputUI(true, data.bilibili_url);
+        
+        // 当检测到有弹幕数据时，清理可能残留的未匹配状态数据
+        await chrome.storage.local.remove(['pendingNoMatchResults', 'pendingSearchResults']);
+    } else {
+        updateManualInputUI(false);
+    }
+}
+
+// 更新手动输入区域UI状态
+function updateManualInputUI(hasData, bilibiliUrl = '', noMatchData = null) {
+    const label = document.getElementById('bilibili-url-label');
+    const viewBtn = document.getElementById('view-bilibili-btn');
+    const spaceBtn = document.getElementById('view-bilibili-space-btn');
+    
+    if (noMatchData) {
+        // 未匹配状态：显示提示和B站空间按钮
+        label.textContent = '未匹配到B站视频，请手动输入视频链接';
+        viewBtn.style.display = 'none';
+        spaceBtn.style.display = 'block';
+        spaceBtn.textContent = `查看 ${noMatchData.channelInfo.channelName} 的B站空间`;
+        viewBtn.onclick = null;
+        spaceBtn.onclick = () => openBilibiliSpace(noMatchData);
+    } else if (hasData && bilibiliUrl) {
+        // 有数据状态：显示已匹配视频
+        label.textContent = '已匹配到B站视频，输入链接可手动匹配';
+        viewBtn.style.display = 'block';
+        spaceBtn.style.display = 'none';
+        viewBtn.onclick = () => openBilibiliVideo(bilibiliUrl);
+        spaceBtn.onclick = null;
+    } else {
+        // 默认状态：显示手动输入提示
+        label.textContent = '或手动输入B站视频链接：';
+        viewBtn.style.display = 'none';
+        spaceBtn.style.display = 'none';
+        viewBtn.onclick = null;
+        spaceBtn.onclick = null;
+    }
+}
+
+// 打开B站视频页面
+function openBilibiliVideo(url) {
+    if (url) {
+        chrome.tabs.create({ url: url });
+    }
+}
+
+// 打开B站空间页面
+async function openBilibiliSpace(noMatchData) {
+    try {
+        // 获取频道映射信息
+        const mappingResult = await chrome.storage.local.get('channelMappings');
+        const mappings = mappingResult.channelMappings || {};
+        const association = mappings[noMatchData.channelInfo.channelId];
+        
+        if (association && association.bilibiliUID) {
+            const spaceUrl = `https://space.bilibili.com/${association.bilibiliUID}/video`;
+            chrome.tabs.create({ url: spaceUrl });
+        } else {
+            // 如果没有关联信息，显示提示
+            showStatus('该频道尚未关联B站UP主，请先在关联区域设置', 'error');
+        }
+    } catch (error) {
+        console.error('打开B站空间失败:', error);
+        showStatus('打开B站空间失败', 'error');
+    }
+}
+
+// 显示弹幕列表
+function displayDanmakuList(danmakus) {
+    const container = document.getElementById('danmaku-list-container');
+    const list = document.getElementById('danmaku-list');
+    
+    if (!danmakus || danmakus.length === 0) {
+        container.classList.remove('show');
+        return;
+    }
+    
+    container.classList.add('show');
+    
+    // 格式化时间
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+    
+    // 渲染弹幕列表
+    const renderList = (filterText = '') => {
+        const filtered = filterText 
+            ? danmakus.filter(d => d.text.toLowerCase().includes(filterText.toLowerCase()))
+            : danmakus;
+        
+        list.innerHTML = filtered.map(danmaku => `
+            <div class="danmaku-item" data-time="${danmaku.time}">
+                <span class="danmaku-time">${formatTime(danmaku.time)}</span>
+                <span class="danmaku-text">${danmaku.text}</span>
+            </div>
+        `).join('');
+    };
+    
+    renderList();
+    
+    // 搜索功能
+    const searchInput = document.getElementById('danmaku-search');
+    searchInput.addEventListener('input', (e) => {
+        renderList(e.target.value);
+    });
+    
+    // 点击跳转功能
+    list.addEventListener('click', async (e) => {
+        const item = e.target.closest('.danmaku-item');
+        if (!item) return;
+        
+        const time = parseFloat(item.dataset.time);
+        const tab = await getCurrentTab();
+        
+        if (tab && tab.url.includes('youtube.com')) {
+            chrome.tabs.sendMessage(tab.id, {
+                type: 'seekToTime',
+                time: time
+            });
+        }
+    });
+}
+
+// 获取YouTube页面信息
+async function getPageInfo() {
+    try {
+        const tab = await getCurrentTab();
+        if (!tab || !tab.url.includes('youtube.com/watch')) {
+            return null;
+        }
+        
+        const response = await chrome.tabs.sendMessage(tab.id, {
+            type: 'getPageInfo'
+        });
+        
+        if (response && response.success) {
+            return response.data;
+        }
+        return null;
+    } catch (error) {
+        console.error('获取页面信息失败:', error);
+        return null;
+    }
+}
+
+// 显示频道信息
+function displayChannelInfo(pageInfo) {
+    const channelInfoDiv = document.getElementById('channel-info');
+    const associationSection = document.getElementById('association-section');
+    
+    if (!pageInfo || !pageInfo.channel.success) {
+        channelInfoDiv.style.display = 'none';
+        associationSection.style.display = 'none';
+        return;
+    }
+    
+    const { channel } = pageInfo;
+    
+    // 显示频道信息
+    document.getElementById('channel-avatar').src = channel.channelAvatar || '';
+    document.getElementById('channel-name').textContent = channel.channelName || '未知频道';
+    document.getElementById('channel-id').textContent = `ID: ${channel.channelId || '未知'}`;
+    
+    channelInfoDiv.style.display = 'block';
+    associationSection.style.display = 'block';
+    
+    // 检查是否已关联
+    checkAssociation(channel.channelId);
+}
+
+// 检查关联状态
+async function checkAssociation(channelId) {
+    try {
+        const result = await chrome.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        const association = mappings[channelId];
+        
+        const statusText = document.querySelector('.status-text');
+        const associationSection = document.getElementById('association-section');
+        const associatedInfoDiv = document.getElementById('associated-info');
+        const associatedUid = document.getElementById('associated-uid');
+        
+        if (association) {
+            // 已关联 - 隐藏关联卡片，显示UID信息
+            statusText.style.display = 'none';
+            associationSection.style.display = 'none';
+            associatedInfoDiv.style.display = 'flex';
+            
+            const originalText = `已关联：${association.bilibiliUID}`;
+            associatedUid.textContent = originalText;
+            
+            // 绑定点击取消关联事件
+            associatedInfoDiv.onclick = () => unassociateUploader();
+            
+            // 添加悬停文字变化效果
+            associatedInfoDiv.onmouseenter = () => {
+                associatedUid.textContent = '解除关联';
+            };
+            
+            associatedInfoDiv.onmouseleave = () => {
+                associatedUid.textContent = originalText;
+            };
+        } else {
+            // 未关联
+            statusText.textContent = '未关联';
+            statusText.style.display = 'inline-block';
+            statusText.classList.remove('associated');
+            associationSection.style.display = 'block';
+            associatedInfoDiv.style.display = 'none';
+            associatedInfoDiv.onclick = null;
+            associatedInfoDiv.onmouseenter = null;
+            associatedInfoDiv.onmouseleave = null;
+        }
+    } catch (error) {
+        console.error('检查关联状态失败:', error);
+    }
+}
+
+// 解析B站空间链接
+function parseBilibiliSpaceUrl(url) {
+    const match = url.match(/space\.bilibili\.com\/(\d+)/);
+    return match ? match[1] : null;
+}
+
+// 关联UP主
+async function associateUploader() {
+    const spaceUrl = document.getElementById('bilibili-space-url').value.trim();
+    if (!spaceUrl) {
+        showStatus('请输入B站UP主空间链接', 'error');
+        return;
+    }
+    
+    const bilibiliUID = parseBilibiliSpaceUrl(spaceUrl);
+    if (!bilibiliUID) {
+        showStatus('无效的B站空间链接', 'error');
+        return;
+    }
+    
+    try {
+        // 获取当前频道信息
+        const pageInfo = await getPageInfo();
+        if (!pageInfo || !pageInfo.channel.success) {
+            showStatus('无法获取当前频道信息', 'error');
+            return;
+        }
+        
+        const channelId = pageInfo.channel.channelId;
+        
+        // 验证B站空间是否有效（可选）
+        showStatus('正在验证B站空间...', 'loading');
+        
+        // 保存关联
+        const result = await chrome.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        
+        mappings[channelId] = {
+            bilibiliUID: bilibiliUID,
+            bilibiliName: '', // 可以后续获取
+            bilibiliSpaceUrl: spaceUrl,
+            lastUpdate: Date.now()
+        };
+        
+        await chrome.storage.local.set({ channelMappings: mappings });
+        
+        showStatus('关联成功', 'success');
+        
+        // 刷新关联状态显示
+        checkAssociation(channelId);
+        
+    } catch (error) {
+        console.error('关联失败:', error);
+        showStatus('关联失败：' + error.message, 'error');
+    }
+}
+
+// 取消关联
+async function unassociateUploader() {
+    try {
+        const pageInfo = await getPageInfo();
+        if (!pageInfo || !pageInfo.channel.success) {
+            showStatus('无法获取当前频道信息', 'error');
+            return;
+        }
+        
+        const channelId = pageInfo.channel.channelId;
+        
+        const result = await chrome.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        
+        delete mappings[channelId];
+        
+        await chrome.storage.local.set({ channelMappings: mappings });
+        
+        showStatus('已取消关联', 'success');
+        
+        // 刷新关联状态显示
+        checkAssociation(channelId);
+        
+    } catch (error) {
+        console.error('取消关联失败:', error);
+        showStatus('取消关联失败：' + error.message, 'error');
+    }
+}
+
+// 自动搜索弹幕
+async function autoSearchDanmaku(silent = false) {
+    try {
+        const pageInfo = await getPageInfo();
+        if (!pageInfo || !pageInfo.channel.success) {
+            if (!silent) showStatus('无法获取当前频道信息', 'error');
+            return false;
+        }
+        
+        const channelId = pageInfo.channel.channelId;
+        const videoTitle = pageInfo.videoTitle;
+        
+        if (!videoTitle) {
+            if (!silent) showStatus('无法获取视频标题', 'error');
+            return false;
+        }
+        
+        // 获取关联信息
+        const result = await chrome.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        const association = mappings[channelId];
+        
+        if (!association) {
+            if (!silent) showStatus('尚未关联B站UP主', 'error');
+            return false;
+        }
+        
+        if (!silent) showStatus('正在搜索B站视频...', 'loading');
+        
+        // 发送搜索请求到background script
+        const searchResponse = await chrome.runtime.sendMessage({
+            type: 'searchBilibiliVideo',
+            bilibiliUID: association.bilibiliUID,
+            videoTitle: videoTitle,
+            youtubeVideoId: pageInfo.videoId
+        });
+        
+        if (searchResponse.success) {
+            displaySearchResults(searchResponse.results, pageInfo.videoId);
+            return true;
+        } else {
+            if (!silent) showStatus(searchResponse.error || '搜索失败', 'error');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('自动搜索失败:', error);
+        if (!silent) showStatus('搜索失败：' + error.message, 'error');
+        return false;
+    }
+}
+
+// 显示搜索结果
+function displaySearchResults(results, youtubeVideoId) {
+    const searchResults = document.getElementById('search-results');
+    const searchStatus = document.getElementById('search-status');
+    const searchList = document.getElementById('search-list');
+    
+    searchResults.style.display = 'block';
+    
+    if (results.length === 0) {
+        searchStatus.textContent = '未找到匹配的视频';
+        searchList.innerHTML = '';
+    } else if (results.length === 1) {
+        searchStatus.textContent = '找到1个匹配视频，正在自动下载弹幕...';
+        searchList.innerHTML = '';
+        // 自动下载单个结果（也会自动关闭）
+        downloadDanmakuFromBV(results[0].bvid, youtubeVideoId);
+    } else {
+        searchStatus.textContent = `找到${results.length}个匹配视频，请选择：`;
+        searchList.innerHTML = results.map((video, index) => `
+            <div class="search-item" data-bvid="${video.bvid}">
+                <div class="search-item-cover">
+                    <img src="${video.pic || ''}" alt="视频封面" onerror="this.style.display='none'">
+                </div>
+                <div class="search-item-content">
+                    <div class="search-item-title">${video.title}</div>
+                    <div class="search-item-info">发布: ${video.pubdate}</div>
+                </div>
+            </div>
+        `).join('');
+        
+        // 绑定点击事件
+        searchList.querySelectorAll('.search-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const bvid = item.dataset.bvid;
+                
+                // 立即显示loading状态
+                item.classList.add('loading');
+                
+                // 禁用其他选项
+                searchList.querySelectorAll('.search-item').forEach(otherItem => {
+                    if (otherItem !== item) {
+                        otherItem.style.opacity = '0.3';
+                        otherItem.style.pointerEvents = 'none';
+                    }
+                });
+                
+                // 显示下载状态
+                showStatus('正在下载弹幕，请稍候...', 'loading');
+                
+                // 开始下载
+                downloadDanmakuFromBV(bvid, youtubeVideoId);
+            });
+        });
+    }
+}
+
+// 检查待显示的搜索结果（作为备用方案）
+async function checkPendingSearchResults() {
+    try {
+        const result = await chrome.storage.local.get('pendingSearchResults');
+        const pendingResults = result.pendingSearchResults;
+        
+        if (pendingResults && pendingResults.results && pendingResults.results.length > 0) {
+            console.log('发现待显示的搜索结果:', pendingResults.results.length);
+            
+            // 显示搜索结果
+            displaySearchResults(pendingResults.results, pendingResults.youtubeVideoId);
+            
+            // 显示相关信息
+            showStatus(`找到 ${pendingResults.results.length} 个匹配的B站视频，请选择：`, 'info');
+            
+            // 清理已显示的结果
+            await chrome.storage.local.remove('pendingSearchResults');
+        }
+    } catch (error) {
+        console.error('检查待显示搜索结果失败:', error);
+    }
+}
+
+// 检查待显示的未匹配结果（作为备用方案）
+async function checkPendingNoMatchResults() {
+    try {
+        const result = await chrome.storage.local.get('pendingNoMatchResults');
+        const pendingNoMatchResults = result.pendingNoMatchResults;
+        
+        if (pendingNoMatchResults) {
+            console.log('发现待显示的未匹配结果:', pendingNoMatchResults.channelInfo);
+            
+            // 更新手动输入UI显示未匹配状态
+            updateManualInputUI(false, '', pendingNoMatchResults);
+            
+            // 显示相关信息
+            showStatus('未找到匹配的B站视频，请手动输入或查看B站空间', 'info');
+            
+            // 清理已显示的结果
+            await chrome.storage.local.remove('pendingNoMatchResults');
+        }
+    } catch (error) {
+        console.error('检查待显示未匹配结果失败:', error);
+    }
+}
+
+// 从BVID下载弹幕
+async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
+    try {
+        // 总是需要获取tab对象，因为后续需要tab.id发送消息给content script
+        console.log('获取当前标签页信息...');
+        const tab = await getCurrentTab();
+        
+        if (!tab || !tab.url) {
+            showStatus('无法获取当前标签页信息', 'error');
+            return;
+        }
+        
+        // 如果没有传入youtubeVideoId，从当前标签页获取
+        if (!youtubeVideoId) {
+            console.log('未传入youtubeVideoId，从当前标签页获取...');
+            youtubeVideoId = getYouTubeVideoId(tab.url);
+        }
+        
+        if (!youtubeVideoId) {
+            showStatus('无法获取YouTube视频ID', 'error');
+            return;
+        }
+        
+        // 验证当前确实在YouTube视频页面
+        if (!tab.url.includes('youtube.com/watch')) {
+            showStatus('请在YouTube视频页面使用此功能', 'error');
+            return;
+        }
+        
+        console.log('下载弹幕 - BVID:', bvid, 'YouTube视频ID:', youtubeVideoId);
+        
+        showStatus('正在下载弹幕...', 'loading');
+        
+        const response = await chrome.runtime.sendMessage({
+            type: 'downloadDanmaku',
+            bvid: bvid,
+            youtubeVideoId: youtubeVideoId
+        });
+        
+        if (response.success) {
+            showStatus(`成功下载 ${response.count} 条弹幕，正在加载...`, 'success');
+            updateDanmakuInfo(response.count);
+            
+            // 重新加载当前页面的弹幕数据
+            await checkCurrentPageDanmaku();
+            
+            // 通知content script加载弹幕
+            chrome.tabs.sendMessage(tab.id, {
+                type: 'loadDanmaku',
+                youtubeVideoId: youtubeVideoId
+            });
+            
+            // 隐藏搜索结果
+            document.getElementById('search-results').style.display = 'none';
+            
+            // 清理后台的搜索结果数据
+            chrome.runtime.sendMessage({ type: 'clearSearchResults' })
+                .catch(error => console.log('清理搜索结果失败:', error));
+            
+            // 显示完成状态，然后自动关闭popup
+            setTimeout(() => {
+                showStatus('弹幕已加载完成', 'success');
+                setTimeout(() => {
+                    console.log('下载成功，自动关闭popup');
+                    window.close();
+                }, 800); // 显示成功状态0.8秒后关闭
+            }, 300); // 先延迟0.3秒显示完成状态
+        } else {
+            showStatus(response.error || '下载失败', 'error');
+        }
+    } catch (error) {
+        console.error('下载弹幕失败:', error);
+        showStatus('下载失败：' + error.message, 'error');
+    }
+}
+
+// 立即设置消息监听器，不等待DOM加载
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'displayMultipleResults') {
+        console.log('收到搜索结果消息:', request.data.results.length);
+        
+        // 如果DOM还未加载完成，等待一下
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                displaySearchResults(request.data.results, request.data.youtubeVideoId);
+                showStatus(`找到 ${request.data.results.length} 个匹配的B站视频，请选择：`, 'info');
+            });
+        } else {
+            // DOM已就绪，直接显示
+            displaySearchResults(request.data.results, request.data.youtubeVideoId);
+            showStatus(`找到 ${request.data.results.length} 个匹配的B站视频，请选择：`, 'info');
+        }
+        
+        sendResponse({ success: true });
+    } else if (request.type === 'displayNoMatchResults') {
+        console.log('收到未匹配结果消息:', request.data);
+        
+        // 如果DOM还未加载完成，等待一下
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                updateManualInputUI(false, '', request.data);
+                showStatus('未找到匹配的B站视频，请手动输入或查看B站空间', 'info');
+            });
+        } else {
+            // DOM已就绪，直接显示
+            updateManualInputUI(false, '', request.data);
+            showStatus('未找到匹配的B站视频，请手动输入或查看B站空间', 'info');
+        }
+        
+        sendResponse({ success: true });
+    }
+    
+    return true; // 保持消息通道开启
+});
+
+// 消息监听器设置完成后，立即通知background popup已准备好
+console.log('消息监听器已设置，通知background popup准备完成');
+chrome.runtime.sendMessage({ type: 'popupReady' })
+    .then(response => {
+        if (response && response.success) {
+            console.log('成功通知background popup已准备完成');
+        } else {
+            console.log('background暂无待显示的搜索结果');
+        }
+    })
+    .catch(error => {
+        console.log('通知background失败:', error);
+    });
+
+// 检查是否为YouTube页面并切换界面
+async function checkPageTypeAndToggleUI() {
+    const tab = await getCurrentTab();
+    const isYouTubePage = tab && tab.url && tab.url.includes('youtube.com');
+    
+    const simpleContainer = document.getElementById('simple-container');
+    const mainContainer = document.getElementById('main-container');
+    
+    if (isYouTubePage) {
+        // 是YouTube页面，显示完整功能界面
+        mainContainer.style.display = 'block';
+        simpleContainer.style.display = 'none';
+        return true;
+    } else {
+        // 不是YouTube页面，显示简化界面
+        mainContainer.style.display = 'none';
+        simpleContainer.style.display = 'block';
+        return false;
+    }
+}
+
+// 打开YouTube主页
+function openYouTube() {
+    chrome.tabs.create({ url: 'https://www.youtube.com' });
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', async () => {
+    // 首先检查页面类型并切换界面
+    const isYouTubePage = await checkPageTypeAndToggleUI();
+    
+    // 初始化社交图标（无论是否为YouTube页面都显示）
+    await initSocialIcons();
+    
+    // 绑定YouTube按钮事件
+    document.getElementById('open-youtube-btn').addEventListener('click', openYouTube);
+    
+    // 如果不是YouTube页面，不需要执行后续的初始化逻辑
+    if (!isYouTubePage) {
+        return;
+    }
+    
+    await loadSettings();
+    await checkCurrentPageDanmaku();
+    
+    // 获取并显示页面信息
+    const pageInfo = await getPageInfo();
+    displayChannelInfo(pageInfo);
+    
+    // 检查storage中的备用数据（防止遗漏）
+    await checkPendingSearchResults();
+    await checkPendingNoMatchResults();
+    
+    // 绑定事件
+    document.getElementById('download-btn').addEventListener('click', downloadDanmaku);
+    document.getElementById('associate-btn').addEventListener('click', associateUploader);
+    document.getElementById('unassociate-btn').addEventListener('click', unassociateUploader);
+    document.getElementById('auto-search-btn').addEventListener('click', autoSearchDanmaku);
+    
+    // 设置变更事件
+    document.getElementById('enable-danmaku').addEventListener('change', saveSettings);
+    document.getElementById('time-offset').addEventListener('input', () => {
+        updateSliderValues();
+        saveSettings();
+    });
+    document.getElementById('opacity').addEventListener('input', () => {
+        updateSliderValues();
+        saveSettings();
+    });
+    document.getElementById('font-size').addEventListener('input', () => {
+        updateSliderValues();
+        saveSettings();
+    });
+    document.getElementById('speed').addEventListener('input', () => {
+        updateSliderValues();
+        saveSettings();
+    });
+    document.getElementById('track-spacing').addEventListener('input', () => {
+        updateSliderValues();
+        saveSettings();
+    });
+    
+    // 显示区域按钮组事件
+    document.querySelectorAll('.display-area-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // 移除所有按钮的选中状态
+            document.querySelectorAll('.display-area-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+            
+            // 设置当前按钮为选中状态
+            btn.classList.add('active');
+            
+            // 保存设置
+            saveSettings();
+        });
+    });
+    
+    document.getElementById('weight-threshold').addEventListener('input', () => {
+        updateSliderValues();
+        saveSettings();
+    });
+});

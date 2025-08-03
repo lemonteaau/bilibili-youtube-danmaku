@@ -1,0 +1,46 @@
+.bilibili-danmaku-stage {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 59;  /* YouTube的视频控制栏是60 */
+}
+
+.bilibili-danmaku-stage > div {
+    position: absolute;
+    color: #fff;
+    font-family: SimHei, "Microsoft YaHei", Arial, sans-serif;
+    font-size: var(--danmaku-font-size, 24px);
+    line-height: 1.2;
+    padding: 2px 0;
+    white-space: nowrap;
+    font-weight: bold;
+    text-shadow: 
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000,
+        0 0 2px #000;
+    pointer-events: none;
+    opacity: var(--danmaku-opacity, 1);
+    will-change: transform;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+/* YouTube播放器容器 */
+#container.style-scope.ytd-player {
+    position: relative !important;
+}
+
+.html5-video-container {
+    position: relative !important;
+}
+
+/* 备选：如果找不到video-container，确保movie_player也是相对定位 */
+#movie_player {
+    position: relative !important;
+}
