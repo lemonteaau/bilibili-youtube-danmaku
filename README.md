@@ -31,10 +31,19 @@
 
 ## 📦 安装方式
 
-### Chrome 应用商店版本
-目前插件正在 Chrome 应用商店审核中，暂时无法通过商店直接安装。
+### Chrome 应用商店版本（推荐）
 
-### 手动安装（推荐）
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/dmkbhbnbpfijhgpnfahfioedledohfja.svg)](https://chromewebstore.google.com/detail/b2y-youtube-%E5%90%8C%E6%AD%A5%E6%98%BE%E7%A4%BA-bilibili/dmkbhbnbpfijhgpnfahfioedledohfja)
+
+**[🚀 点击前往 Chrome 应用商店安装](https://chromewebstore.google.com/detail/b2y-youtube-%E5%90%8C%E6%AD%A5%E6%98%BE%E7%A4%BA-bilibili/dmkbhbnbpfijhgpnfahfioedledohfja)**
+
+1. 打开上方链接
+2. 点击"添加至 Chrome"按钮
+3. 确认安装即可使用
+
+### 手动安装（备选方式）
+
+> 💡 **注意：** 优先推荐使用 Chrome 应用商店版本，仅在无法访问应用商店时才使用以下手动安装方式。
 1. 前往本项目的 [Release 页面](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/releases) 下载最新版本的 zip 文件
 2. 解压下载的 zip 文件到本地文件夹
 3. 打开 Chrome 浏览器，进入扩展程序管理页面：
