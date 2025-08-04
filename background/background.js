@@ -976,6 +976,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: true });
         
         return true;
+    } else if (request.type === 'fetchOriginalTitle') {
+        // 通过oEmbed API获取YouTube视频原始标题
+        fetchYouTubeOriginalTitle(request.oembedUrl, request.videoId)
+            .then(result => {
+                sendResponse(result);
+            })
+            .catch(error => {
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            });
+        
+        return true; // 保持消息通道开启
     } else if (request.type === 'cleanupExpiredDanmaku') {
         console.log('收到清理过期弹幕请求');
         // 异步执行清理，立即响应
@@ -986,3 +1000,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 });
+
+// 通过YouTube oEmbed API获取视频原始标题
+async function fetchYouTubeOriginalTitle(oembedUrl, videoId) {
+    try {
+        console.log(`获取YouTube原始标题: ${videoId}`);
+        
+        const response = await fetch(oembedUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://www.youtube.com/'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`oEmbed API请求失败: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.title) {
+            throw new Error('oEmbed API响应中没有title字段');
+        }
+        
+        console.log(`获取到原始标题: ${data.title}`);
+        
+        return {
+            success: true,
+            title: data.title,
+            author_name: data.author_name || '',
+            author_url: data.author_url || ''
+        };
+        
+    } catch (error) {
+        console.error('获取YouTube原始标题失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}

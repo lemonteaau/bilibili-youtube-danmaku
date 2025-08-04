@@ -152,6 +152,66 @@ function getVideoTitle() {
     }
 }
 
+// 通过oEmbed API获取原始视频标题
+async function getOriginalVideoTitle(videoId) {
+    try {
+        if (!videoId) {
+            return null;
+        }
+        
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`;
+        
+        console.log('尝试通过oEmbed API获取原始标题:', oembedUrl);
+        
+        // 发送请求到background script处理CORS
+        const response = await chrome.runtime.sendMessage({
+            type: 'fetchOriginalTitle',
+            oembedUrl: oembedUrl,
+            videoId: videoId
+        });
+        
+        if (response.success && response.title) {
+            console.log('通过oEmbed API获取到原始标题:', response.title);
+            return response.title;
+        } else {
+            console.log('oEmbed API获取标题失败:', response.error || '未知错误');
+            return null;
+        }
+    } catch (error) {
+        console.error('获取原始标题失败:', error);
+        return null;
+    }
+}
+
+// 获取增强的视频标题（优先使用原始标题）
+async function getEnhancedVideoTitle(videoId) {
+    try {
+        // 首先获取当前显示的标题
+        const displayedTitle = getVideoTitle();
+        
+        // 尝试获取原始标题
+        const originalTitle = await getOriginalVideoTitle(videoId);
+        
+        // 如果获取到原始标题且与显示标题不同，优先使用原始标题
+        if (originalTitle && originalTitle !== displayedTitle) {
+            console.log('检测到多语言标题差异:', {
+                显示标题: displayedTitle,
+                原始标题: originalTitle,
+                使用: '原始标题'
+            });
+            return originalTitle;
+        }
+        
+        // 否则使用显示的标题
+        console.log('使用显示标题:', displayedTitle);
+        return displayedTitle;
+    } catch (error) {
+        console.error('获取增强标题失败:', error);
+        return getVideoTitle(); // 回退到基础方法
+    }
+}
+
 // 查找视频容器
 function findVideoContainer() {
     // 优先查找YouTube播放器容器
@@ -281,8 +341,8 @@ async function autoCheckAndDownloadDanmaku() {
             return;
         }
         
-        // 获取视频标题
-        const videoTitle = getVideoTitle();
+        // 获取增强的视频标题（支持多语言原始标题）
+        const videoTitle = await getEnhancedVideoTitle(videoId);
         if (!videoTitle) {
             console.log('无法获取视频标题，跳过自动检测');
             return;
@@ -461,17 +521,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.type === 'getPageInfo') {
         // 获取页面信息
         const channelInfo = getChannelInfo();
-        const videoTitle = getVideoTitle();
         const videoId = getVideoId();
         
-        sendResponse({
-            success: true,
-            data: {
-                channel: channelInfo,
-                videoTitle: videoTitle,
-                videoId: videoId
-            }
-        });
+        // 异步获取增强标题
+        (async () => {
+            const videoTitle = await getEnhancedVideoTitle(videoId);
+            
+            sendResponse({
+                success: true,
+                data: {
+                    channel: channelInfo,
+                    videoTitle: videoTitle,
+                    videoId: videoId
+                }
+            });
+        })();
     }
     
     return true; // 保持消息通道开启
