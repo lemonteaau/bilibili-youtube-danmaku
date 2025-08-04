@@ -60,7 +60,7 @@
 
 ### 2025-08-04
 1.0.8
-- ✨ 添加多语言标题自动匹配功能（合并 Pull Request #1，感谢 @lemonteaau 贡献）
+- ✨ 添加多语言标题自动匹配功能（https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/pull/1 ，感谢 @[lemonteaau](https://github.com/lemonteaau) ）
 
 1.0.7
 - ✨ 支持 “哔哩哔哩动画Anime Made By Bilibili ” 频道自动获取原创番剧弹幕
