@@ -460,6 +460,7 @@ async function getPageInfo() {
 function displayChannelInfo(pageInfo) {
     const channelInfoDiv = document.getElementById('channel-info');
     const associationSection = document.getElementById('association-section');
+    const manualInputSection = document.getElementById('manual-input');
     
     if (!pageInfo || !pageInfo.channel.success) {
         channelInfoDiv.style.display = 'none';
@@ -469,16 +470,43 @@ function displayChannelInfo(pageInfo) {
     
     const { channel } = pageInfo;
     
+    // 检查是否为MadeByBilibili频道
+    const isBangumiChannel = channel.channelId === '@MadeByBilibili' || channel.channelName === 'MadeByBilibili';
+    
     // 显示频道信息
     document.getElementById('channel-avatar').src = channel.channelAvatar || '';
-    document.getElementById('channel-name').textContent = channel.channelName || '未知频道';
+    // 番剧频道显示特殊名称
+    document.getElementById('channel-name').textContent = isBangumiChannel ? '哔哩哔哩动画' : (channel.channelName || '未知频道');
     document.getElementById('channel-id').textContent = `ID: ${channel.channelId || '未知'}`;
     
     channelInfoDiv.style.display = 'block';
-    associationSection.style.display = 'block';
     
-    // 检查是否已关联
-    checkAssociation(channel.channelId);
+    if (isBangumiChannel) {
+        // 显示番剧专用UI，隐藏关联相关区域
+        associationSection.style.display = 'none';
+        manualInputSection.style.display = 'none';
+        
+        // 隐藏关联状态（未关联按钮等）
+        const associationStatus = document.getElementById('association-status');
+        if (associationStatus) {
+            associationStatus.style.display = 'none';
+        }
+        
+        displayBangumiInterface(pageInfo);
+    } else {
+        // 显示普通关联UI
+        associationSection.style.display = 'block';
+        manualInputSection.style.display = 'block';
+        
+        // 显示关联状态
+        const associationStatus = document.getElementById('association-status');
+        if (associationStatus) {
+            associationStatus.style.display = 'block';
+        }
+        
+        // 检查是否已关联
+        checkAssociation(channel.channelId);
+    }
 }
 
 // 检查关联状态
@@ -766,6 +794,144 @@ async function checkPendingNoMatchResults() {
         }
     } catch (error) {
         console.error('检查待显示未匹配结果失败:', error);
+    }
+}
+
+// 解析番剧标题和集数
+function parseBangumiTitle(videoTitle) {
+    // 匹配 《标题》第x话：格式，确保"话"后面有冒号
+    const match = videoTitle.match(/《(.+?)》第(\d+)话：/);
+    if (match) {
+        return {
+            title: match[1].trim(),
+            episode: parseInt(match[2]),
+            isValid: true
+        };
+    }
+    return { isValid: false };
+}
+
+// 显示番剧界面
+function displayBangumiInterface(pageInfo) {
+    // 保存当前页面信息供其他函数使用
+    currentPageInfo = pageInfo;
+    
+    // 创建番剧专用的界面元素
+    const existingBangumiSection = document.getElementById('bangumi-section');
+    if (existingBangumiSection) {
+        existingBangumiSection.remove();
+    }
+    
+    // 解析当前视频标题
+    const videoTitle = pageInfo.videoTitle;
+    const parseResult = parseBangumiTitle(videoTitle);
+    
+    const bangumiSection = document.createElement('div');
+    bangumiSection.id = 'bangumi-section';
+    bangumiSection.className = 'association-section';
+    
+    if (parseResult.isValid) {
+        // 解析成功：显示完整信息和更新按钮
+        bangumiSection.innerHTML = `
+            <div class="association-header">
+                <h3>BillBili 原创番剧-《${parseResult.title}》-第${parseResult.episode}话</h3>
+            </div>
+            <div class="input-group">
+                <div class="button-group">
+                    <button id="update-bangumi-btn" style="background-color: #fb7299;">更新弹幕</button>
+                </div>
+            </div>
+        `;
+        
+        // 插入到频道信息后面
+        const channelInfo = document.getElementById('channel-info');
+        channelInfo.parentNode.insertBefore(bangumiSection, channelInfo.nextSibling);
+        
+        // 绑定按钮事件和悬停效果
+        const updateButton = document.getElementById('update-bangumi-btn');
+        updateButton.onclick = () => downloadBangumiDanmakuFromUI(parseResult.title, parseResult.episode, pageInfo.videoId);
+        
+        // 添加悬停效果
+        updateButton.onmouseenter = () => {
+            updateButton.style.backgroundColor = '#f25d8e';
+        };
+        updateButton.onmouseleave = () => {
+            updateButton.style.backgroundColor = '#fb7299';
+        };
+        
+    } else {
+        // 解析失败：只显示标题，无按钮
+        bangumiSection.innerHTML = `
+            <div class="association-header">
+                <h3>未识别到番剧正片</h3>
+            </div>
+        `;
+        
+        // 插入到频道信息后面
+        const channelInfo = document.getElementById('channel-info');
+        channelInfo.parentNode.insertBefore(bangumiSection, channelInfo.nextSibling);
+    }
+}
+
+
+
+
+
+// 获取当前页面信息（简化版本）
+let currentPageInfo = null;
+function getCurrentPageInfo() {
+    return currentPageInfo;
+}
+
+// 从UI下载番剧弹幕
+async function downloadBangumiDanmakuFromUI(title, episodeNumber, youtubeVideoId) {
+    try {
+        const updateButton = document.getElementById('update-bangumi-btn');
+        updateButton.disabled = true;
+        updateButton.textContent = '更新中...';
+        
+        const response = await chrome.runtime.sendMessage({
+            type: 'downloadBangumiDanmaku',
+            title: title,
+            episodeNumber: episodeNumber,
+            youtubeVideoId: youtubeVideoId
+        });
+        
+        if (response.success) {
+            updateDanmakuInfo(response.count);
+            
+            // 重新加载当前页面的弹幕数据
+            await checkCurrentPageDanmaku();
+            
+            // 通知content script加载弹幕
+            const tab = await getCurrentTab();
+            if (tab && tab.url.includes('youtube.com')) {
+                chrome.tabs.sendMessage(tab.id, {
+                    type: 'loadDanmaku',
+                    youtubeVideoId: youtubeVideoId
+                });
+            }
+            
+            updateButton.textContent = `更新完成（${response.count}条）`;
+            
+            // 1秒后自动关闭popup
+            setTimeout(() => {
+                console.log('番剧弹幕下载成功，自动关闭popup');
+                window.close();
+            }, 1000);
+        } else {
+            showStatus(response.error || '下载失败', 'error');
+            updateButton.textContent = '重试更新';
+        }
+    } catch (error) {
+        console.error('下载番剧弹幕失败:', error);
+        showStatus('下载失败：' + error.message, 'error');
+        
+        const updateButton = document.getElementById('update-bangumi-btn');
+        updateButton.textContent = '重试更新';
+    } finally {
+        const updateButton = document.getElementById('update-bangumi-btn');
+        updateButton.disabled = false;
     }
 }
 

@@ -108,6 +108,20 @@ function getChannelInfo() {
     }
 }
 
+// 解析番剧标题和集数
+function parseBangumiTitle(videoTitle) {
+    // 匹配 《标题》第x话：格式，确保"话"后面有冒号
+    const match = videoTitle.match(/《(.+?)》第(\d+)话：/);
+    if (match) {
+        return {
+            title: match[1].trim(),
+            episode: parseInt(match[2]),
+            isValid: true
+        };
+    }
+    return { isValid: false };
+}
+
 // 获取视频标题
 function getVideoTitle() {
     try {
@@ -271,6 +285,57 @@ async function autoCheckAndDownloadDanmaku() {
         const videoTitle = getVideoTitle();
         if (!videoTitle) {
             console.log('无法获取视频标题，跳过自动检测');
+            return;
+        }
+        
+        // 检查是否为番剧频道
+        if (channelInfo.channelId === '@MadeByBilibili' || channelInfo.channelName === 'MadeByBilibili') {
+            console.log('检测到番剧频道，执行番剧自动下载逻辑...', {
+                channelId: channelInfo.channelId,
+                channelName: channelInfo.channelName,
+                videoTitle: videoTitle
+            });
+            
+            // 解析番剧标题和集数
+            const parseResult = parseBangumiTitle(videoTitle);
+            if (parseResult.isValid) {
+                console.log('番剧解析成功:', {
+                    title: parseResult.title,
+                    episode: parseResult.episode
+                });
+                
+                try {
+                    // 直接调用番剧弹幕下载
+                    const response = await chrome.runtime.sendMessage({
+                        type: 'downloadBangumiDanmaku',
+                        title: parseResult.title,
+                        episodeNumber: parseResult.episode,
+                        youtubeVideoId: videoId
+                    });
+                    
+                    if (response.success) {
+                        console.log(`番剧弹幕自动下载成功: ${response.count} 条`);
+                        
+                        // 异步触发清理过期弹幕数据
+                        chrome.runtime.sendMessage({
+                            type: 'cleanupExpiredDanmaku'
+                        }).then(() => console.log('清理成功')).catch(error => console.log('触发清理失败:', error));
+                        
+                        // 重新加载弹幕到引擎
+                        if (danmakuEngine) {
+                            await loadDanmakuForVideo(videoId);
+                        }
+                    } else {
+                        console.error('番剧弹幕自动下载失败:', response.error);
+                    }
+                } catch (error) {
+                    console.error('番剧弹幕下载出错:', error);
+                }
+            } else {
+                console.log('番剧标题解析失败，无法自动下载弹幕');
+            }
+            
+            // 番剧处理完成，直接返回，不执行后续的普通频道逻辑
             return;
         }
         

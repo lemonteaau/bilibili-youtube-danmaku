@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "B2Y - YouTube 同步显示 Bilibili 弹幕",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "自动将Bilibili的弹幕同步显示在YouTube视频上",
     "permissions": [
         "storage",

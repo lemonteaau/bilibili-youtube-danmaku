@@ -1,3 +1,6 @@
+// 导入番剧处理模块
+importScripts('bangumi.js');
+
 // WBI签名相关配置
 const mixinKeyEncTab = [
     46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
@@ -713,6 +716,8 @@ async function handleNoMatchResults(request) {
     }
 }
 
+
+
 // 清理过期弹幕数据（异步执行，不阻塞主流程）
 async function cleanupExpiredDanmaku() {
     try {
@@ -798,6 +803,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         searchBilibiliVideo(request.bilibiliUID, request.videoTitle)
             .then(result => {
                 sendResponse(result);
+            })
+            .catch(error => {
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            });
+        
+        return true; // 保持消息通道开启
+    } else if (request.type === 'downloadBangumiDanmaku') {
+        // 新增：B站番剧弹幕下载 - 简化流程：获取bvid然后用现有逻辑下载
+        searchBilibiliBangumi(request.title, request.episodeNumber)
+            .then(async (bvid) => {
+                console.log(`获取到番剧bvid: ${bvid}`);
+                
+                // 使用现有的弹幕下载逻辑
+                const data = await downloadAllDanmaku(bvid);
+                
+                // 保存弹幕数据 - 使用现有的存储格式
+                const storageData = {
+                    [request.youtubeVideoId]: {
+                        bilibili_url: `https://www.bilibili.com/video/${bvid}`,
+                        bilibili_title: `${request.title} 第${request.episodeNumber}话`,
+                        danmakus: data.danmakus,
+                        duration: data.duration,
+                        timeOffset: 0,
+                        lastUpdate: Date.now()
+                    }
+                };
+                
+                await chrome.storage.local.set(storageData);
+                
+                // 异步清理过期弹幕数据，不阻塞响应
+                Promise.resolve().then(() => {
+                    cleanupExpiredDanmaku();
+                });
+                
+                sendResponse({
+                    success: true,
+                    count: data.danmakus.length
+                });
             })
             .catch(error => {
                 sendResponse({
