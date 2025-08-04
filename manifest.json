@@ -9,7 +9,8 @@
     ],
     "host_permissions": [
         "https://api.bilibili.com/*",
-        "https://www.bilibili.com/*"
+        "https://www.bilibili.com/*",
+        "https://www.youtube.com/oembed*"
     ],
     "background": {
         "service_worker": "background/background.js"
