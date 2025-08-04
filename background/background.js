@@ -460,6 +460,15 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
         
         console.log(`搜索到 ${results.length} 个结果`);
         
+        // 如果首次搜索无结果，尝试按分割符拆分标题重新搜索
+        if (results.length === 0) {
+            console.log('首次搜索无结果，尝试分割标题重新搜索');
+            const fallbackResult = await searchWithSplitTitle(bilibiliUID, simplifiedTitle, wbiKeys);
+            if (fallbackResult.success && fallbackResult.results.length > 0) {
+                return fallbackResult;
+            }
+        }
+        
         // 优先寻找标题精确匹配的结果
         let finalResults = results;
         if (results.length > 1) {
@@ -478,6 +487,88 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
         
     } catch (error) {
         console.error('B站搜索失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// 分割标题重新搜索的辅助函数
+async function searchWithSplitTitle(bilibiliUID, title, wbiKeys) {
+    try {
+        // 尝试全角和半角分割符
+        const separators = ['｜', '|'];
+        
+        for (const separator of separators) {
+            if (title.includes(separator)) {
+                const parts = title.split(separator);
+                // 选择最长的部分（去除前后空格）
+                const longestPart = parts
+                    .map(part => part.trim())
+                    .filter(part => part.length > 0) // 过滤空字符串
+                    .reduce((longest, current) => 
+                        current.length > longest.length ? current : longest
+                    );
+                
+                console.log(`使用分割符"${separator}"，最长部分: ${longestPart}`);
+                
+                // 用最长部分重新搜索
+                const params = {
+                    mid: bilibiliUID,
+                    ps: 30,
+                    tid: 0,
+                    pn: 1,
+                    keyword: longestPart,
+                    order: 'pubdate',
+                    web_location: 1550101,
+                    wts: Math.round(Date.now() / 1000)
+                };
+                
+                const query = encWbi(params, wbiKeys.img_key, wbiKeys.sub_key);
+                const apiUrl = `https://api.bilibili.com/x/space/wbi/arc/search?${query}`;
+                
+                console.log(`备用搜索API URL: ${apiUrl}`);
+                
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Referer': 'https://www.bilibili.com/',
+                        'Origin': 'https://www.bilibili.com'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.code === 0) {
+                        const results = parseBilibiliApiResults(data);
+                        console.log(`分割标题搜索到 ${results.length} 个结果`);
+                        
+                        if (results.length > 0) {
+                            return {
+                                success: true,
+                                results: results,
+                                searchUrl: apiUrl,
+                                fallbackSearch: true,
+                                originalTitle: title,
+                                usedPart: longestPart,
+                                separator: separator
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 如果都没找到
+        console.log('分割标题搜索也未找到结果');
+        return {
+            success: false,
+            error: '分割标题搜索也未找到结果'
+        };
+        
+    } catch (error) {
+        console.error('分割标题搜索失败:', error);
         return {
             success: false,
             error: error.message

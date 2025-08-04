@@ -372,8 +372,8 @@ class DanmakuEngine {
         const currentTime = performance.now();
         const deltaTime = currentTime - this.lastFrameTime;
         
-        // 限制到60fps
-        if (deltaTime >= 16.67) {
+        // 限制到120fps
+        if (deltaTime >= 8) {
             this.update();
             this.lastFrameTime = currentTime;
         }
