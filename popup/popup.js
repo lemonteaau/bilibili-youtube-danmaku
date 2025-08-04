@@ -1,6 +1,6 @@
 // 获取当前标签页信息
 async function getCurrentTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     return tab;
 }
 
@@ -92,7 +92,7 @@ function renderSocialIcons(config) {
             // 添加点击事件
             iconElement.addEventListener('click', () => {
                 if (link.url) {
-                    chrome.tabs.create({ url: link.url });
+                    browser.tabs.create({ url: link.url });
                 }
             });
             
@@ -171,12 +171,12 @@ async function saveSettings() {
         weightThreshold: parseInt(document.getElementById('weight-threshold').value)
     };
     
-    await chrome.storage.local.set({ danmakuSettings: settings });
+    await browser.storage.local.set({ danmakuSettings: settings });
     
     // 通知content script更新设置
     const tab = await getCurrentTab();
     if (tab && tab.url.includes('youtube.com')) {
-        chrome.tabs.sendMessage(tab.id, {
+        browser.tabs.sendMessage(tab.id, {
             type: 'updateSettings',
             settings: settings
         });
@@ -185,7 +185,7 @@ async function saveSettings() {
 
 // 加载设置
 async function loadSettings() {
-    const result = await chrome.storage.local.get('danmakuSettings');
+    const result = await browser.storage.local.get('danmakuSettings');
     const settings = result.danmakuSettings || {
         enabled: true,
         timeOffset: 0,
@@ -259,7 +259,7 @@ async function downloadDanmaku() {
     
     try {
         // 发送消息给background script下载弹幕
-        const response = await chrome.runtime.sendMessage({
+        const response = await browser.runtime.sendMessage({
             type: 'downloadDanmaku',
             bvid: bvid,
             youtubeVideoId: youtubeVideoId
@@ -273,7 +273,7 @@ async function downloadDanmaku() {
             await checkCurrentPageDanmaku();
             
             // 通知content script加载弹幕
-            chrome.tabs.sendMessage(tab.id, {
+            browser.tabs.sendMessage(tab.id, {
                 type: 'loadDanmaku',
                 youtubeVideoId: youtubeVideoId
             });
@@ -302,7 +302,7 @@ async function checkCurrentPageDanmaku() {
     }
     
     // 检查是否已有弹幕数据
-    const result = await chrome.storage.local.get(youtubeVideoId);
+    const result = await browser.storage.local.get(youtubeVideoId);
     if (result[youtubeVideoId] && result[youtubeVideoId].danmakus) {
         const data = result[youtubeVideoId];
         document.getElementById('bilibili-url').value = data.bilibili_url || '';
@@ -311,7 +311,7 @@ async function checkCurrentPageDanmaku() {
         updateManualInputUI(true, data.bilibili_url);
         
         // 当检测到有弹幕数据时，清理可能残留的未匹配状态数据
-        await chrome.storage.local.remove(['pendingNoMatchResults', 'pendingSearchResults']);
+        await browser.storage.local.remove(['pendingNoMatchResults', 'pendingSearchResults']);
     } else {
         updateManualInputUI(false);
     }
@@ -351,7 +351,7 @@ function updateManualInputUI(hasData, bilibiliUrl = '', noMatchData = null) {
 // 打开B站视频页面
 function openBilibiliVideo(url) {
     if (url) {
-        chrome.tabs.create({ url: url });
+        browser.tabs.create({ url: url });
     }
 }
 
@@ -359,13 +359,13 @@ function openBilibiliVideo(url) {
 async function openBilibiliSpace(noMatchData) {
     try {
         // 获取频道映射信息
-        const mappingResult = await chrome.storage.local.get('channelMappings');
+        const mappingResult = await browser.storage.local.get('channelMappings');
         const mappings = mappingResult.channelMappings || {};
         const association = mappings[noMatchData.channelInfo.channelId];
         
         if (association && association.bilibiliUID) {
             const spaceUrl = `https://space.bilibili.com/${association.bilibiliUID}/video`;
-            chrome.tabs.create({ url: spaceUrl });
+            browser.tabs.create({ url: spaceUrl });
         } else {
             // 如果没有关联信息，显示提示
             showStatus('该频道尚未关联B站UP主，请先在关联区域设置', 'error');
@@ -426,7 +426,7 @@ function displayDanmakuList(danmakus) {
         const tab = await getCurrentTab();
         
         if (tab && tab.url.includes('youtube.com')) {
-            chrome.tabs.sendMessage(tab.id, {
+            browser.tabs.sendMessage(tab.id, {
                 type: 'seekToTime',
                 time: time
             });
@@ -442,7 +442,7 @@ async function getPageInfo() {
             return null;
         }
         
-        const response = await chrome.tabs.sendMessage(tab.id, {
+        const response = await browser.tabs.sendMessage(tab.id, {
             type: 'getPageInfo'
         });
         
@@ -484,7 +484,7 @@ function displayChannelInfo(pageInfo) {
 // 检查关联状态
 async function checkAssociation(channelId) {
     try {
-        const result = await chrome.storage.local.get('channelMappings');
+        const result = await browser.storage.local.get('channelMappings');
         const mappings = result.channelMappings || {};
         const association = mappings[channelId];
         
@@ -563,7 +563,7 @@ async function associateUploader() {
         showStatus('正在验证B站空间...', 'loading');
         
         // 保存关联
-        const result = await chrome.storage.local.get('channelMappings');
+        const result = await browser.storage.local.get('channelMappings');
         const mappings = result.channelMappings || {};
         
         mappings[channelId] = {
@@ -573,7 +573,7 @@ async function associateUploader() {
             lastUpdate: Date.now()
         };
         
-        await chrome.storage.local.set({ channelMappings: mappings });
+        await browser.storage.local.set({ channelMappings: mappings });
         
         showStatus('关联成功', 'success');
         
@@ -597,12 +597,12 @@ async function unassociateUploader() {
         
         const channelId = pageInfo.channel.channelId;
         
-        const result = await chrome.storage.local.get('channelMappings');
+        const result = await browser.storage.local.get('channelMappings');
         const mappings = result.channelMappings || {};
         
         delete mappings[channelId];
         
-        await chrome.storage.local.set({ channelMappings: mappings });
+        await browser.storage.local.set({ channelMappings: mappings });
         
         showStatus('已取消关联', 'success');
         
@@ -633,7 +633,7 @@ async function autoSearchDanmaku(silent = false) {
         }
         
         // 获取关联信息
-        const result = await chrome.storage.local.get('channelMappings');
+        const result = await browser.storage.local.get('channelMappings');
         const mappings = result.channelMappings || {};
         const association = mappings[channelId];
         
@@ -645,7 +645,7 @@ async function autoSearchDanmaku(silent = false) {
         if (!silent) showStatus('正在搜索B站视频...', 'loading');
         
         // 发送搜索请求到background script
-        const searchResponse = await chrome.runtime.sendMessage({
+        const searchResponse = await browser.runtime.sendMessage({
             type: 'searchBilibiliVideo',
             bilibiliUID: association.bilibiliUID,
             videoTitle: videoTitle,
@@ -726,7 +726,7 @@ function displaySearchResults(results, youtubeVideoId) {
 // 检查待显示的搜索结果（作为备用方案）
 async function checkPendingSearchResults() {
     try {
-        const result = await chrome.storage.local.get('pendingSearchResults');
+        const result = await browser.storage.local.get('pendingSearchResults');
         const pendingResults = result.pendingSearchResults;
         
         if (pendingResults && pendingResults.results && pendingResults.results.length > 0) {
@@ -739,7 +739,7 @@ async function checkPendingSearchResults() {
             showStatus(`找到 ${pendingResults.results.length} 个匹配的B站视频，请选择：`, 'info');
             
             // 清理已显示的结果
-            await chrome.storage.local.remove('pendingSearchResults');
+            await browser.storage.local.remove('pendingSearchResults');
         }
     } catch (error) {
         console.error('检查待显示搜索结果失败:', error);
@@ -749,7 +749,7 @@ async function checkPendingSearchResults() {
 // 检查待显示的未匹配结果（作为备用方案）
 async function checkPendingNoMatchResults() {
     try {
-        const result = await chrome.storage.local.get('pendingNoMatchResults');
+        const result = await browser.storage.local.get('pendingNoMatchResults');
         const pendingNoMatchResults = result.pendingNoMatchResults;
         
         if (pendingNoMatchResults) {
@@ -762,7 +762,7 @@ async function checkPendingNoMatchResults() {
             showStatus('未找到匹配的B站视频，请手动输入或查看B站空间', 'info');
             
             // 清理已显示的结果
-            await chrome.storage.local.remove('pendingNoMatchResults');
+            await browser.storage.local.remove('pendingNoMatchResults');
         }
     } catch (error) {
         console.error('检查待显示未匹配结果失败:', error);
@@ -802,7 +802,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
         
         showStatus('正在下载弹幕...', 'loading');
         
-        const response = await chrome.runtime.sendMessage({
+        const response = await browser.runtime.sendMessage({
             type: 'downloadDanmaku',
             bvid: bvid,
             youtubeVideoId: youtubeVideoId
@@ -816,7 +816,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
             await checkCurrentPageDanmaku();
             
             // 通知content script加载弹幕
-            chrome.tabs.sendMessage(tab.id, {
+            browser.tabs.sendMessage(tab.id, {
                 type: 'loadDanmaku',
                 youtubeVideoId: youtubeVideoId
             });
@@ -825,7 +825,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
             document.getElementById('search-results').style.display = 'none';
             
             // 清理后台的搜索结果数据
-            chrome.runtime.sendMessage({ type: 'clearSearchResults' })
+            browser.runtime.sendMessage({ type: 'clearSearchResults' })
                 .catch(error => console.log('清理搜索结果失败:', error));
             
             // 显示完成状态，然后自动关闭popup
@@ -846,7 +846,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
 }
 
 // 立即设置消息监听器，不等待DOM加载
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'displayMultipleResults') {
         console.log('收到搜索结果消息:', request.data.results.length);
         
@@ -886,7 +886,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // 消息监听器设置完成后，立即通知background popup已准备好
 console.log('消息监听器已设置，通知background popup准备完成');
-chrome.runtime.sendMessage({ type: 'popupReady' })
+browser.runtime.sendMessage({ type: 'popupReady' })
     .then(response => {
         if (response && response.success) {
             console.log('成功通知background popup已准备完成');
@@ -921,7 +921,7 @@ async function checkPageTypeAndToggleUI() {
 
 // 打开YouTube主页
 function openYouTube() {
-    chrome.tabs.create({ url: 'https://www.youtube.com' });
+    browser.tabs.create({ url: 'https://www.youtube.com' });
 }
 
 // 初始化
