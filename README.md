@@ -1,6 +1,8 @@
-# B2Y - YouTube 同步显示 Bilibili 弹幕
+# B2Y - YouTube 同步显示 Bilibili 弹幕 (Firefox Fork)
 
-> B2Y - 自动将Bilibili的弹幕同步显示在YouTube视频上
+> **Note:** This is a fork of the original [B2Y - YouTube 同步显示 Bilibili 弹幕](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku) project, specifically adapted for **Mozilla Firefox**.
+>
+> 这个版本主要为了解决在 Firefox 浏览器上的兼容性问题，并进行了性能优化。
 
 🍻关注的 UP 在 Youtube 和 B 站都有投稿，想在 Youtube 看更好的画质又想看弹幕🤔？
 
@@ -31,7 +33,17 @@
 
 ## 📦 安装方式
 
-### Chrome 应用商店版本（推荐）
+### 🦊 Firefox 安装方式 (此 Fork)
+
+1.  前往本 Fork 的 [Release 页面](https://github.com/lemonteaau/bilibili-youtube-danmaku/releases) 下载最新版本的 `zip` 文件。
+2.  解压下载的 `zip` 文件到本地一个固定的文件夹。
+3.  打开 Firefox 浏览器，在地址栏输入 `about:debugging` 并按回车。
+4.  点击左侧的“此 Firefox”。
+5.  点击“加载临时附加组件...”按钮。
+6.  在文件选择框中，进入你刚刚解压的文件夹，选择 `manifest.json` 文件。
+7.  安装完成！插件图标会出现在浏览器工具栏中。
+
+### 🌐 Chrome 应用商店版本（原版）
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/dmkbhbnbpfijhgpnfahfioedledohfja.svg)](https://chromewebstore.google.com/detail/b2y-youtube-%E5%90%8C%E6%AD%A5%E6%98%BE%E7%A4%BA-bilibili/dmkbhbnbpfijhgpnfahfioedledohfja)
 
@@ -41,10 +53,10 @@
 2. 点击"添加至 Chrome"按钮
 3. 确认安装即可使用
 
-### 手动安装（备选方式）
+### 🛠️ Chrome 手动安装（原版备选）
 
 > 💡 **注意：** 优先推荐使用 Chrome 应用商店版本，仅在无法访问应用商店时才使用以下手动安装方式。
-1. 前往本项目的 [Release 页面](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/releases) 下载最新版本的 zip 文件
+1. 前往原项目的 [Release 页面](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/releases) 下载最新版本的 zip 文件
 2. 解压下载的 zip 文件到本地文件夹
 3. 打开 Chrome 浏览器，进入扩展程序管理页面：
    - 方法一：在地址栏输入 `chrome://extensions/`
