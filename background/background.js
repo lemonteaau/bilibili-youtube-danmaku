@@ -350,6 +350,30 @@ try {
     console.error('OpenCC转换器初始化失败:', error);
 }
 
+// 获取标题的最佳部分（处理分割符）
+function getBestTitlePart(title) {
+    if (!title || typeof title !== 'string') return title;
+    
+    const separators = ['｜', '|'];
+    
+    for (const separator of separators) {
+        if (title.includes(separator)) {
+            const parts = title.split(separator);
+            const longestPart = parts
+                .map(part => part.trim())
+                .filter(part => part.length > 0)
+                .reduce((longest, current) => 
+                    current.length > longest.length ? current : longest
+                );
+            
+            console.log(`使用分割符"${separator}"，选择最长部分: "${longestPart}"`);
+            return longestPart;
+        }
+    }
+    
+    return title; // 没有分割符时返回原标题
+}
+
 // 清理视频标题函数
 function cleanVideoTitle(title) {
     if (!title || typeof title !== 'string') return title;
@@ -488,8 +512,11 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
     try {
         // 繁体转简体
         const simplifiedTitle = traditionalToSimplifiedChinese(videoTitle);
-        const cleanedTitle = cleanVideoTitle(simplifiedTitle);
-        console.log(`搜索标题: ${videoTitle} → ${cleanedTitle}`);
+        // 获取标题最佳部分
+        const bestPart = getBestTitlePart(simplifiedTitle);
+        // 清理标题
+        const cleanedTitle = cleanVideoTitle(bestPart);
+        console.log(`搜索标题: ${videoTitle}  → ${cleanedTitle}`);
         
         // 获取WBI Keys
         const wbiKeys = await getWbiKeys();
@@ -536,22 +563,14 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
         
         console.log(`搜索到 ${results.length} 个结果`);
         
-        // 如果首次搜索无结果，尝试按分割符拆分标题重新搜索
-        if (results.length === 0) {
-            console.log('首次搜索无结果，尝试分割标题重新搜索');
-            const fallbackResult = await searchWithSplitTitle(bilibiliUID, cleanedTitle, wbiKeys);
-            if (fallbackResult.success && fallbackResult.results.length > 0) {
-                return fallbackResult;
-            }
-        }
-        
-        // 优先寻找标题精确匹配的结果
+        // 优先寻找标题完全包含简化标题的结果
         let finalResults = results;
         if (results.length > 1) {
-            const exactMatch = results.find(result => result.title === simplifiedTitle);
-            if (exactMatch) {
-                console.log(`找到精确匹配的标题: ${exactMatch.title}`);
-                finalResults = [exactMatch];
+            console.log(`包含${results.length}个结果，尝试包含匹配`);
+            const containsMatch = results.find(result => result.title.includes(cleanedTitle));
+            if (containsMatch) {
+                console.log(`找到包含匹配的标题: ${containsMatch.title}`);
+                finalResults = [containsMatch];
             }
         }
         
@@ -677,13 +696,6 @@ function parseBilibiliApiResults(apiData) {
             const video = videoList[i];
             
             if (video.bvid && video.title) {
-                // 格式化时长（从秒转换为mm:ss格式）
-                const formatDuration = (seconds) => {
-                    const mins = Math.floor(seconds / 60);
-                    const secs = seconds % 60;
-                    return `${mins}:${secs.toString().padStart(2, '0')}`;
-                };
-                
                 // 格式化发布时间
                 const formatPubdate = (timestamp) => {
                     const date = new Date(timestamp * 1000);
