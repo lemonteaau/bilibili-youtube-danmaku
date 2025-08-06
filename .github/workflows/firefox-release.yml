@@ -1,0 +1,261 @@
+name: Firefox 扩展自动打包发布
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'manifest.json'  # 只有当 manifest.json 发生变化时才触发
+      - 'lib/browser-api.js'  # 当核心兼容性文件变化时触发
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  firefox-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 读取版本号
+      id: get_version
+      run: |
+        VERSION=$(cat manifest.json | jq -r '.version')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "当前版本: $VERSION"
+        
+    - name: 验证 Firefox 兼容性
+      run: |
+        echo "🔍 验证 Firefox 兼容性配置..."
+        
+        # 检查是否包含 browser_specific_settings
+        if ! jq -e '.browser_specific_settings.gecko' manifest.json > /dev/null; then
+          echo "❌ manifest.json 缺少 Firefox 兼容性配置"
+          exit 1
+        fi
+        
+        # 检查是否使用 background scripts 而非 service_worker
+        if jq -e '.background.service_worker' manifest.json > /dev/null; then
+          echo "❌ manifest.json 仍使用 service_worker，应使用 scripts"
+          exit 1
+        fi
+        
+        # 检查是否包含 browser-api.js
+        if [ ! -f "lib/browser-api.js" ]; then
+          echo "❌ 缺少 Firefox 兼容性文件: lib/browser-api.js"
+          exit 1
+        fi
+        
+        # 检查是否还有 Chrome API 调用
+        if grep -r "chrome\." --include="*.js" . --exclude-dir=.git | grep -v "browser-api.js" | grep -v "browserAPI.*chrome"; then
+          echo "⚠️  发现可能的 Chrome API 调用，请检查兼容性"
+        fi
+        
+        echo "✅ Firefox 兼容性验证通过"
+        
+    - name: 检查是否已存在该版本的 Release
+      id: check_release
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        TAG_NAME="firefox-v$VERSION"
+        if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "版本 $TAG_NAME 的 Release 已存在，跳过发布"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "版本 $TAG_NAME 的 Release 不存在，继续发布"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 创建 Firefox 扩展包
+      if: steps.check_release.outputs.exists == 'false'
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        PACKAGE_NAME="B2Y-Firefox-v$VERSION.zip"
+        XPI_NAME="B2Y-Firefox-v$VERSION.xpi"
+        
+        echo "📦 开始打包 Firefox 扩展..."
+        
+        # 创建临时目录用于打包
+        mkdir -p temp_package
+        
+        # 复制 Firefox 扩展需要的文件和目录
+        echo "📁 复制文件..."
+        cp -r assets/ temp_package/
+        cp -r background/ temp_package/
+        cp -r content/ temp_package/
+        cp -r lib/ temp_package/
+        cp -r utils/ temp_package/
+        cp -r popup/ temp_package/
+        cp manifest.json temp_package/
+        cp channel-associations.json temp_package/
+        cp social-config.json temp_package/
+        cp LICENSE temp_package/
+        
+        # 创建 Firefox 安装说明
+        cat > temp_package/FIREFOX_INSTALL.txt << 'EOF'
+        B2Y Firefox 扩展安装说明
+        ========================
+        
+        方法一：临时安装（推荐用于测试）
+        1. 在 Firefox 中打开 about:debugging
+        2. 点击"此 Firefox"
+        3. 点击"临时载入附加组件"
+        4. 选择解压后的 manifest.json 文件
+        
+        方法二：开发者模式安装（永久安装）
+        1. 在 Firefox 中打开 about:config
+        2. 搜索 xpinstall.signatures.required
+        3. 将值设置为 false（注意：这会降低安全性）
+        4. 重启 Firefox
+        5. 现在可以直接安装 .xpi 文件
+        
+        技术要求：
+        - Firefox 109 或更高版本
+        - 支持 WebExtensions Manifest V3
+        
+        项目地址：https://github.com/lemonteaau/bilibili-youtube-danmaku
+        EOF
+        
+        # 创建 ZIP 包（用于手动安装）
+        echo "🗜️  创建 ZIP 包..."
+        cd temp_package
+        zip -r "../$PACKAGE_NAME" . -x "*.DS_Store" "*/.DS_Store"
+        cd ..
+        
+        # 创建 XPI 包（Firefox 扩展格式）
+        echo "🦊 创建 XPI 包..."
+        cp "$PACKAGE_NAME" "$XPI_NAME"
+        
+        # 清理临时目录
+        rm -rf temp_package
+        
+        # 计算文件大小
+        ZIP_SIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
+        XPI_SIZE=$(du -h "$XPI_NAME" | cut -f1)
+        
+        echo "✅ Firefox 扩展包创建完成:"
+        echo "  📦 ZIP 包: $PACKAGE_NAME ($ZIP_SIZE)"
+        echo "  🦊 XPI 包: $XPI_NAME ($XPI_SIZE)"
+        
+        # 设置环境变量
+        echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
+        echo "xpi_name=$XPI_NAME" >> $GITHUB_ENV
+        
+    - name: 生成 Release 说明
+      if: steps.check_release.outputs.exists == 'false'
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        
+        cat > release_notes.md << 'EOF'
+        # 🦊 B2Y Firefox 扩展 v$VERSION
+        
+        这是专为 Firefox 浏览器优化的 B2Y 扩展版本，可以在 YouTube 上同步显示 Bilibili 弹幕。
+        
+        ## 🌟 本版本特性
+        
+        - ✅ **完全兼容 Firefox 109+**
+        - ✅ **跨浏览器 API 兼容层**
+        - ✅ **优化的背景脚本架构**
+        - ✅ **统一的用户体验**
+        - ✅ **自动弹幕匹配**
+        - ✅ **番剧弹幕支持**
+        
+        ## 📦 安装文件说明
+        
+        - **B2Y-Firefox-v$VERSION.zip**: 标准 ZIP 格式，适用于临时安装
+        - **B2Y-Firefox-v$VERSION.xpi**: Firefox 扩展格式，适用于开发者模式安装
+        - 两个文件功能完全相同，请根据安装方式选择
+        
+        ## 🚀 快速安装
+        
+        ### 方法一：临时安装（推荐）
+        1. 下载 `.zip` 文件并解压
+        2. Firefox 中打开 `about:debugging`
+        3. 点击"此 Firefox" → "临时载入附加组件"
+        4. 选择解压后的 `manifest.json` 文件
+        
+        ### 方法二：开发者模式安装
+        1. Firefox 中打开 `about:config`
+        2. 设置 `xpinstall.signatures.required` 为 `false`
+        3. 重启 Firefox
+        4. 直接安装 `.xpi` 文件
+        
+        ## 🔧 技术改进
+        
+        - 修复了 "redeclaration of const browserAPI" 错误
+        - 优化了脚本加载顺序
+        - 增强了跨浏览器兼容性
+        - 统一的 API 调用接口
+        
+        ## ⚠️  注意事项
+        
+        - 本版本专为 Firefox 优化，不再维护 Chrome 兼容性
+        - 需要 Firefox 109 或更高版本
+        - 临时安装的扩展在浏览器重启后会被移除
+        
+        ---
+        
+        **原项目**: [ahaduoduoduo/bilibili-youtube-danmaku](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku)  
+        **Firefox 适配**: [lemonteaau/bilibili-youtube-danmaku](https://github.com/lemonteaau/bilibili-youtube-danmaku)
+        EOF
+        
+        # 替换版本号
+        sed -i "s/\$VERSION/$VERSION/g" release_notes.md
+        
+    - name: 创建 Firefox Release
+      if: steps.check_release.outputs.exists == 'false'
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        TAG_NAME="firefox-v$VERSION"
+        PACKAGE_NAME="B2Y-Firefox-v$VERSION.zip"
+        XPI_NAME="B2Y-Firefox-v$VERSION.xpi"
+        
+        echo "🚀 创建 Firefox Release: $TAG_NAME"
+        
+        # 创建 Release
+        gh release create "$TAG_NAME" \
+          --title "🦊 B2Y Firefox v$VERSION" \
+          --notes-file release_notes.md \
+          --latest \
+          "$PACKAGE_NAME" \
+          "$XPI_NAME"
+          
+        echo "✅ Firefox Release $TAG_NAME 创建成功"
+        echo "📦 已上传文件:"
+        echo "  - $PACKAGE_NAME (ZIP 格式)"
+        echo "  - $XPI_NAME (XPI 格式)"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 输出成功信息
+      if: steps.check_release.outputs.exists == 'false'
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        TAG_NAME="firefox-v$VERSION"
+        
+        echo "🎉 Firefox 扩展 v$VERSION 已成功打包并发布!"
+        echo ""
+        echo "📋 发布信息:"
+        echo "  🏷️  标签: $TAG_NAME"
+        echo "  📦 ZIP 包: B2Y-Firefox-v$VERSION.zip"
+        echo "  🦊 XPI 包: B2Y-Firefox-v$VERSION.xpi"
+        echo ""
+        echo "🔗 Release 链接:"
+        echo "  https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
+        echo ""
+        echo "📥 用户可以通过以下方式安装:"
+        echo "  1. 下载 ZIP 包，解压后通过 about:debugging 临时安装"
+        echo "  2. 下载 XPI 包，在开发者模式下直接安装"
+        
+    - name: 跳过发布提示  
+      if: steps.check_release.outputs.exists == 'true'
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        TAG_NAME="firefox-v$VERSION"
+        echo "ℹ️  版本 $TAG_NAME 的 Release 已存在，本次跳过发布"
+        echo "🔗 现有 Release: https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
