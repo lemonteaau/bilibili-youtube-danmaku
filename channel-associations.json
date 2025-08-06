@@ -1,0 +1,40 @@
+{
+  "channels": [
+    {
+      "youtubeChannelId": "@mediastorm6801",
+      "youtubeChannelName": "Mediastorm影视飓风",
+      "bilibiliUID": "946974",
+      "bilibiliName": "影视飓风"
+    },
+    {
+      "youtubeChannelId": "@geekerwan1024",
+      "youtubeChannelName": "极客湾Geekerwan",
+      "bilibiliUID": "25876945",
+      "bilibiliName": "极客湾Geekerwan"
+    },
+    {
+      "youtubeChannelId": "@linksphotograph",
+      "youtubeChannelName": "Links TV",
+      "bilibiliUID": "3816626",
+      "bilibiliName": "Linksphotograph"
+    },
+    {
+      "youtubeChannelId": "@xdiaocha",
+      "youtubeChannelName": "X調查",
+      "bilibiliUID": "339233162",
+      "bilibiliName": "X调查"
+    },
+    {
+      "youtubeChannelId": "@xiqixia",
+      "youtubeChannelName": "吸奇侠",
+      "bilibiliUID": "414350632",
+      "bilibiliName": "吸奇侠"
+    },
+    {
+      "youtubeChannelId": "@thu4878",
+      "youtubeChannelName": "毕导THU",
+      "bilibiliUID": "254463269",
+      "bilibiliName": "毕导"
+    }
+  ]
+}
