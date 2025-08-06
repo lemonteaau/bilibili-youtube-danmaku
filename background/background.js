@@ -1,7 +1,7 @@
 // 导入必要的库
-importScripts('../lib/browser-polyfill.min.js');
-importScripts('../lib/protobuf-parser.js');
-importScripts('../lib/opencc.min.js');
+importScripts('lib/browser-polyfill.min.js');
+importScripts('lib/protobuf-parser.js');
+importScripts('lib/opencc.min.js');
 
 // B站番剧处理模块 (原bangumi.js内容)
 // B站番剧搜索功能 - 直接返回指定集数的bvid
