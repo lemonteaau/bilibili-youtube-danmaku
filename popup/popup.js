@@ -1,10 +1,6 @@
-// 引入频道关联管理工具
-// 由于在扩展环境中，通过script标签加载
-// 工具类会在页面加载时自动初始化为全局变量
-
 // 获取当前标签页信息
 async function getCurrentTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     return tab;
 }
 
@@ -96,7 +92,7 @@ function renderSocialIcons(config) {
             // 添加点击事件
             iconElement.addEventListener('click', () => {
                 if (link.url) {
-                    chrome.tabs.create({ url: link.url });
+                    browser.tabs.create({ url: link.url });
                 }
             });
             
@@ -175,12 +171,12 @@ async function saveSettings() {
         weightThreshold: parseInt(document.getElementById('weight-threshold').value)
     };
     
-    await chrome.storage.local.set({ danmakuSettings: settings });
+    await browser.storage.local.set({ danmakuSettings: settings });
     
     // 通知content script更新设置
     const tab = await getCurrentTab();
     if (tab && tab.url.includes('youtube.com')) {
-        chrome.tabs.sendMessage(tab.id, {
+        browser.tabs.sendMessage(tab.id, {
             type: 'updateSettings',
             settings: settings
         });
@@ -189,7 +185,7 @@ async function saveSettings() {
 
 // 加载设置
 async function loadSettings() {
-    const result = await chrome.storage.local.get('danmakuSettings');
+    const result = await browser.storage.local.get('danmakuSettings');
     const settings = result.danmakuSettings || {
         enabled: true,
         timeOffset: 0,
@@ -263,7 +259,7 @@ async function downloadDanmaku() {
     
     try {
         // 发送消息给background script下载弹幕
-        const response = await chrome.runtime.sendMessage({
+        const response = await browser.runtime.sendMessage({
             type: 'downloadDanmaku',
             bvid: bvid,
             youtubeVideoId: youtubeVideoId
@@ -277,7 +273,7 @@ async function downloadDanmaku() {
             await checkCurrentPageDanmaku();
             
             // 通知content script加载弹幕
-            chrome.tabs.sendMessage(tab.id, {
+            browser.tabs.sendMessage(tab.id, {
                 type: 'loadDanmaku',
                 youtubeVideoId: youtubeVideoId
             });
@@ -306,7 +302,7 @@ async function checkCurrentPageDanmaku() {
     }
     
     // 检查是否已有弹幕数据
-    const result = await chrome.storage.local.get(youtubeVideoId);
+    const result = await browser.storage.local.get(youtubeVideoId);
     if (result[youtubeVideoId] && result[youtubeVideoId].danmakus) {
         const data = result[youtubeVideoId];
         document.getElementById('bilibili-url').value = data.bilibili_url || '';
@@ -315,7 +311,7 @@ async function checkCurrentPageDanmaku() {
         updateManualInputUI(true, data.bilibili_url);
         
         // 当检测到有弹幕数据时，清理可能残留的未匹配状态数据
-        await chrome.storage.local.remove(['pendingNoMatchResults', 'pendingSearchResults']);
+        await browser.storage.local.remove(['pendingNoMatchResults', 'pendingSearchResults']);
     } else {
         updateManualInputUI(false);
     }
@@ -355,7 +351,7 @@ function updateManualInputUI(hasData, bilibiliUrl = '', noMatchData = null) {
 // 打开B站视频页面
 function openBilibiliVideo(url) {
     if (url) {
-        chrome.tabs.create({ url: url });
+        browser.tabs.create({ url: url });
     }
 }
 
@@ -363,11 +359,13 @@ function openBilibiliVideo(url) {
 async function openBilibiliSpace(noMatchData) {
     try {
         // 获取频道映射信息
-        const association = await getChannelAssociation(noMatchData.channelInfo.channelId);
+        const mappingResult = await browser.storage.local.get('channelMappings');
+        const mappings = mappingResult.channelMappings || {};
+        const association = mappings[noMatchData.channelInfo.channelId];
         
         if (association && association.bilibiliUID) {
             const spaceUrl = `https://space.bilibili.com/${association.bilibiliUID}/video`;
-            chrome.tabs.create({ url: spaceUrl });
+            browser.tabs.create({ url: spaceUrl });
         } else {
             // 如果没有关联信息，显示提示
             showStatus('该频道尚未关联B站UP主，请先在关联区域设置', 'error');
@@ -428,7 +426,7 @@ function displayDanmakuList(danmakus) {
         const tab = await getCurrentTab();
         
         if (tab && tab.url.includes('youtube.com')) {
-            chrome.tabs.sendMessage(tab.id, {
+            browser.tabs.sendMessage(tab.id, {
                 type: 'seekToTime',
                 time: time
             });
@@ -436,58 +434,20 @@ function displayDanmakuList(danmakus) {
     });
 }
 
-// 获取YouTube页面信息（增强版）
-async function getPageInfo(useCache = true) {
+// 获取YouTube页面信息
+async function getPageInfo() {
     try {
         const tab = await getCurrentTab();
         if (!tab || !tab.url.includes('youtube.com/watch')) {
             return null;
         }
         
-        // 优先从background获取缓存的准确信息
-        if (useCache) {
-            try {
-                const backgroundResponse = await chrome.runtime.sendMessage({
-                    type: 'getPageInfoFromBackground'
-                });
-                
-                if (backgroundResponse && backgroundResponse.success) {
-                    console.log('从background获取页面信息成功:', {
-                        videoId: backgroundResponse.data.videoId,
-                        fromCache: backgroundResponse.fromCache
-                    });
-                    
-                    // 验证获取到的信息是否与当前页面匹配
-                    const currentVideoId = getYouTubeVideoId(tab.url);
-                    if (backgroundResponse.data.videoId === currentVideoId) {
-                        return backgroundResponse.data;
-                    } else {
-                        console.warn('background缓存的视频ID与当前不匹配，fallback到直接获取');
-                    }
-                }
-            } catch (error) {
-                console.warn('从background获取页面信息失败，fallback到直接获取:', error);
-            }
-        }
-        
-        // fallback：直接从content script获取
-        console.log('直接从content script获取页面信息');
-        const response = await chrome.tabs.sendMessage(tab.id, {
+        const response = await browser.tabs.sendMessage(tab.id, {
             type: 'getPageInfo'
         });
         
         if (response && response.success) {
-            // 验证获取到的信息
-            const currentVideoId = getYouTubeVideoId(tab.url);
-            if (response.data.videoId === currentVideoId) {
-                return response.data;
-            } else {
-                console.error('获取到的页面信息与当前页面不匹配', {
-                    expected: currentVideoId,
-                    actual: response.data.videoId
-                });
-                return null;
-            }
+            return response.data;
         }
         return null;
     } catch (error) {
@@ -500,7 +460,6 @@ async function getPageInfo(useCache = true) {
 function displayChannelInfo(pageInfo) {
     const channelInfoDiv = document.getElementById('channel-info');
     const associationSection = document.getElementById('association-section');
-    const manualInputSection = document.getElementById('manual-input');
     
     if (!pageInfo || !pageInfo.channel.success) {
         channelInfoDiv.style.display = 'none';
@@ -510,49 +469,24 @@ function displayChannelInfo(pageInfo) {
     
     const { channel } = pageInfo;
     
-    // 检查是否为MadeByBilibili频道
-    const isBangumiChannel = channel.channelId === '@MadeByBilibili' || channel.channelName === 'MadeByBilibili';
-    
     // 显示频道信息
     document.getElementById('channel-avatar').src = channel.channelAvatar || '';
-    // 番剧频道显示特殊名称
-    document.getElementById('channel-name').textContent = isBangumiChannel ? '哔哩哔哩动画' : (channel.channelName || '未知频道');
+    document.getElementById('channel-name').textContent = channel.channelName || '未知频道';
     document.getElementById('channel-id').textContent = `ID: ${channel.channelId || '未知'}`;
     
     channelInfoDiv.style.display = 'block';
+    associationSection.style.display = 'block';
     
-    if (isBangumiChannel) {
-        // 显示番剧专用UI，隐藏关联相关区域
-        associationSection.style.display = 'none';
-        manualInputSection.style.display = 'none';
-        
-        // 隐藏关联状态（未关联按钮等）
-        const associationStatus = document.getElementById('association-status');
-        if (associationStatus) {
-            associationStatus.style.display = 'none';
-        }
-        
-        displayBangumiInterface(pageInfo);
-    } else {
-        // 显示普通关联UI
-        associationSection.style.display = 'block';
-        manualInputSection.style.display = 'block';
-        
-        // 显示关联状态
-        const associationStatus = document.getElementById('association-status');
-        if (associationStatus) {
-            associationStatus.style.display = 'block';
-        }
-        
-        // 检查是否已关联
-        checkAssociation(channel.channelId);
-    }
+    // 检查是否已关联
+    checkAssociation(channel.channelId);
 }
 
 // 检查关联状态
 async function checkAssociation(channelId) {
     try {
-        const association = await getChannelAssociation(channelId);
+        const result = await browser.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        const association = mappings[channelId];
         
         const statusText = document.querySelector('.status-text');
         const associationSection = document.getElementById('association-section');
@@ -595,12 +529,8 @@ async function checkAssociation(channelId) {
     }
 }
 
-// 解析B站空间链接 - 现在使用工具类方法
+// 解析B站空间链接
 function parseBilibiliSpaceUrl(url) {
-    if (typeof channelAssociation !== 'undefined') {
-        return channelAssociation.parseBilibiliSpaceUrl(url);
-    }
-    // 降级处理
     const match = url.match(/space\.bilibili\.com\/(\d+)/);
     return match ? match[1] : null;
 }
@@ -633,16 +563,17 @@ async function associateUploader() {
         showStatus('正在验证B站空间...', 'loading');
         
         // 保存关联
-        const associationData = {
+        const result = await browser.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        
+        mappings[channelId] = {
             bilibiliUID: bilibiliUID,
             bilibiliName: '', // 可以后续获取
-            bilibiliSpaceUrl: spaceUrl
+            bilibiliSpaceUrl: spaceUrl,
+            lastUpdate: Date.now()
         };
         
-        const success = await saveChannelAssociation(channelId, associationData);
-        if (!success) {
-            throw new Error('保存关联信息失败');
-        }
+        await browser.storage.local.set({ channelMappings: mappings });
         
         showStatus('关联成功', 'success');
         
@@ -666,10 +597,12 @@ async function unassociateUploader() {
         
         const channelId = pageInfo.channel.channelId;
         
-        const success = await removeChannelAssociation(channelId);
-        if (!success) {
-            throw new Error('删除关联信息失败');
-        }
+        const result = await browser.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        
+        delete mappings[channelId];
+        
+        await browser.storage.local.set({ channelMappings: mappings });
         
         showStatus('已取消关联', 'success');
         
@@ -700,7 +633,9 @@ async function autoSearchDanmaku(silent = false) {
         }
         
         // 获取关联信息
-        const association = await getChannelAssociation(channelId);
+        const result = await browser.storage.local.get('channelMappings');
+        const mappings = result.channelMappings || {};
+        const association = mappings[channelId];
         
         if (!association) {
             if (!silent) showStatus('尚未关联B站UP主', 'error');
@@ -710,7 +645,7 @@ async function autoSearchDanmaku(silent = false) {
         if (!silent) showStatus('正在搜索B站视频...', 'loading');
         
         // 发送搜索请求到background script
-        const searchResponse = await chrome.runtime.sendMessage({
+        const searchResponse = await browser.runtime.sendMessage({
             type: 'searchBilibiliVideo',
             bilibiliUID: association.bilibiliUID,
             videoTitle: videoTitle,
@@ -791,7 +726,7 @@ function displaySearchResults(results, youtubeVideoId) {
 // 检查待显示的搜索结果（作为备用方案）
 async function checkPendingSearchResults() {
     try {
-        const result = await chrome.storage.local.get('pendingSearchResults');
+        const result = await browser.storage.local.get('pendingSearchResults');
         const pendingResults = result.pendingSearchResults;
         
         if (pendingResults && pendingResults.results && pendingResults.results.length > 0) {
@@ -804,7 +739,7 @@ async function checkPendingSearchResults() {
             showStatus(`找到 ${pendingResults.results.length} 个匹配的B站视频，请选择：`, 'info');
             
             // 清理已显示的结果
-            await chrome.storage.local.remove('pendingSearchResults');
+            await browser.storage.local.remove('pendingSearchResults');
         }
     } catch (error) {
         console.error('检查待显示搜索结果失败:', error);
@@ -814,7 +749,7 @@ async function checkPendingSearchResults() {
 // 检查待显示的未匹配结果（作为备用方案）
 async function checkPendingNoMatchResults() {
     try {
-        const result = await chrome.storage.local.get('pendingNoMatchResults');
+        const result = await browser.storage.local.get('pendingNoMatchResults');
         const pendingNoMatchResults = result.pendingNoMatchResults;
         
         if (pendingNoMatchResults) {
@@ -827,148 +762,10 @@ async function checkPendingNoMatchResults() {
             showStatus('未找到匹配的B站视频，请手动输入或查看B站空间', 'info');
             
             // 清理已显示的结果
-            await chrome.storage.local.remove('pendingNoMatchResults');
+            await browser.storage.local.remove('pendingNoMatchResults');
         }
     } catch (error) {
         console.error('检查待显示未匹配结果失败:', error);
-    }
-}
-
-// 解析番剧标题和集数
-function parseBangumiTitle(videoTitle) {
-    // 匹配 《标题》第x话：格式，确保"话"后面有冒号
-    const match = videoTitle.match(/《(.+?)》第(\d+)话：/);
-    if (match) {
-        return {
-            title: match[1].trim(),
-            episode: parseInt(match[2]),
-            isValid: true
-        };
-    }
-    return { isValid: false };
-}
-
-// 显示番剧界面
-function displayBangumiInterface(pageInfo) {
-    // 保存当前页面信息供其他函数使用
-    currentPageInfo = pageInfo;
-    
-    // 创建番剧专用的界面元素
-    const existingBangumiSection = document.getElementById('bangumi-section');
-    if (existingBangumiSection) {
-        existingBangumiSection.remove();
-    }
-    
-    // 解析当前视频标题
-    const videoTitle = pageInfo.videoTitle;
-    const parseResult = parseBangumiTitle(videoTitle);
-    
-    const bangumiSection = document.createElement('div');
-    bangumiSection.id = 'bangumi-section';
-    bangumiSection.className = 'association-section';
-    
-    if (parseResult.isValid) {
-        // 解析成功：显示完整信息和更新按钮
-        bangumiSection.innerHTML = `
-            <div class="association-header">
-                <h3>BillBili 原创番剧-《${parseResult.title}》-第${parseResult.episode}话</h3>
-            </div>
-            <div class="input-group">
-                <div class="button-group">
-                    <button id="update-bangumi-btn" style="background-color: #fb7299;">更新弹幕</button>
-                </div>
-            </div>
-        `;
-        
-        // 插入到频道信息后面
-        const channelInfo = document.getElementById('channel-info');
-        channelInfo.parentNode.insertBefore(bangumiSection, channelInfo.nextSibling);
-        
-        // 绑定按钮事件和悬停效果
-        const updateButton = document.getElementById('update-bangumi-btn');
-        updateButton.onclick = () => downloadBangumiDanmakuFromUI(parseResult.title, parseResult.episode, pageInfo.videoId);
-        
-        // 添加悬停效果
-        updateButton.onmouseenter = () => {
-            updateButton.style.backgroundColor = '#f25d8e';
-        };
-        updateButton.onmouseleave = () => {
-            updateButton.style.backgroundColor = '#fb7299';
-        };
-        
-    } else {
-        // 解析失败：只显示标题，无按钮
-        bangumiSection.innerHTML = `
-            <div class="association-header">
-                <h3>未识别到番剧正片</h3>
-            </div>
-        `;
-        
-        // 插入到频道信息后面
-        const channelInfo = document.getElementById('channel-info');
-        channelInfo.parentNode.insertBefore(bangumiSection, channelInfo.nextSibling);
-    }
-}
-
-
-
-
-
-// 获取当前页面信息（简化版本）
-let currentPageInfo = null;
-function getCurrentPageInfo() {
-    return currentPageInfo;
-}
-
-// 从UI下载番剧弹幕
-async function downloadBangumiDanmakuFromUI(title, episodeNumber, youtubeVideoId) {
-    try {
-        const updateButton = document.getElementById('update-bangumi-btn');
-        updateButton.disabled = true;
-        updateButton.textContent = '更新中...';
-        
-        const response = await chrome.runtime.sendMessage({
-            type: 'downloadBangumiDanmaku',
-            title: title,
-            episodeNumber: episodeNumber,
-            youtubeVideoId: youtubeVideoId
-        });
-        
-        if (response.success) {
-            updateDanmakuInfo(response.count);
-            
-            // 重新加载当前页面的弹幕数据
-            await checkCurrentPageDanmaku();
-            
-            // 通知content script加载弹幕
-            const tab = await getCurrentTab();
-            if (tab && tab.url.includes('youtube.com')) {
-                chrome.tabs.sendMessage(tab.id, {
-                    type: 'loadDanmaku',
-                    youtubeVideoId: youtubeVideoId
-                });
-            }
-            
-            updateButton.textContent = `更新完成（${response.count}条）`;
-            
-            // 1秒后自动关闭popup
-            setTimeout(() => {
-                console.log('番剧弹幕下载成功，自动关闭popup');
-                window.close();
-            }, 1000);
-        } else {
-            showStatus(response.error || '下载失败', 'error');
-            updateButton.textContent = '重试更新';
-        }
-    } catch (error) {
-        console.error('下载番剧弹幕失败:', error);
-        showStatus('下载失败：' + error.message, 'error');
-        
-        const updateButton = document.getElementById('update-bangumi-btn');
-        updateButton.textContent = '重试更新';
-    } finally {
-        const updateButton = document.getElementById('update-bangumi-btn');
-        updateButton.disabled = false;
     }
 }
 
@@ -1005,7 +802,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
         
         showStatus('正在下载弹幕...', 'loading');
         
-        const response = await chrome.runtime.sendMessage({
+        const response = await browser.runtime.sendMessage({
             type: 'downloadDanmaku',
             bvid: bvid,
             youtubeVideoId: youtubeVideoId
@@ -1019,7 +816,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
             await checkCurrentPageDanmaku();
             
             // 通知content script加载弹幕
-            chrome.tabs.sendMessage(tab.id, {
+            browser.tabs.sendMessage(tab.id, {
                 type: 'loadDanmaku',
                 youtubeVideoId: youtubeVideoId
             });
@@ -1028,7 +825,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
             document.getElementById('search-results').style.display = 'none';
             
             // 清理后台的搜索结果数据
-            chrome.runtime.sendMessage({ type: 'clearSearchResults' })
+            browser.runtime.sendMessage({ type: 'clearSearchResults' })
                 .catch(error => console.log('清理搜索结果失败:', error));
             
             // 显示完成状态，然后自动关闭popup
@@ -1049,7 +846,7 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
 }
 
 // 立即设置消息监听器，不等待DOM加载
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'displayMultipleResults') {
         console.log('收到搜索结果消息:', request.data.results.length);
         
@@ -1089,7 +886,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // 消息监听器设置完成后，立即通知background popup已准备好
 console.log('消息监听器已设置，通知background popup准备完成');
-chrome.runtime.sendMessage({ type: 'popupReady' })
+browser.runtime.sendMessage({ type: 'popupReady' })
     .then(response => {
         if (response && response.success) {
             console.log('成功通知background popup已准备完成');
@@ -1122,62 +919,9 @@ async function checkPageTypeAndToggleUI() {
     }
 }
 
-// 显示页面信息刷新按钮
-function showPageInfoRefreshButton() {
-    const channelInfoDiv = document.getElementById('channel-info');
-    if (!channelInfoDiv) return;
-    
-    // 检查是否已经有刷新按钮
-    if (document.getElementById('refresh-page-info-btn')) return;
-    
-    channelInfoDiv.innerHTML = `
-        <div style="text-align: center; padding: 20px;">
-            <p style="color: #666; margin-bottom: 10px;">无法获取当前页面信息</p>
-            <button id="refresh-page-info-btn" style="
-                background-color: #ff4444; 
-                color: white; 
-                border: none; 
-                padding: 8px 16px; 
-                border-radius: 4px; 
-                cursor: pointer;
-            ">刷新页面信息</button>
-        </div>
-    `;
-    
-    // 绑定刷新事件
-    document.getElementById('refresh-page-info-btn').addEventListener('click', async () => {
-        const button = document.getElementById('refresh-page-info-btn');
-        const originalText = button.textContent;
-        
-        button.textContent = '刷新中...';
-        button.disabled = true;
-        
-        try {
-            // 强制重新获取页面信息（不使用缓存）
-            const pageInfo = await getPageInfo(false);
-            
-            if (pageInfo) {
-                displayChannelInfo(pageInfo);
-                showStatus('页面信息已刷新', 'success');
-            } else {
-                showStatus('仍无法获取页面信息，请稍后重试', 'error');
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        } catch (error) {
-            console.error('刷新页面信息失败:', error);
-            showStatus('刷新失败: ' + error.message, 'error');
-            button.textContent = originalText;
-            button.disabled = false;
-        }
-    });
-    
-    channelInfoDiv.style.display = 'block';
-}
-
 // 打开YouTube主页
 function openYouTube() {
-    chrome.tabs.create({ url: 'https://www.youtube.com' });
+    browser.tabs.create({ url: 'https://www.youtube.com' });
 }
 
 // 初始化
@@ -1202,11 +946,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 获取并显示页面信息
     const pageInfo = await getPageInfo();
     displayChannelInfo(pageInfo);
-    
-    // 如果获取页面信息失败，显示刷新按钮
-    if (!pageInfo) {
-        showPageInfoRefreshButton();
-    }
     
     // 检查storage中的备用数据（防止遗漏）
     await checkPendingSearchResults();

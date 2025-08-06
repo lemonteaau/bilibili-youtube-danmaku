@@ -337,8 +337,7 @@ async function getSegmentDanmaku(cid, aid, segmentIndex, wbiKeys) {
 }
 
 // 引入protobuf解析器和OpenCC库
-importScripts('../lib/protobuf-parser.js');
-importScripts('../lib/opencc.min.js');
+
 
 // 初始化OpenCC转换器
 let openccConverter = null;
@@ -746,13 +745,13 @@ async function handleMultipleResults(request) {
         };
         
         // 同时存储到storage作为备用
-        await chrome.storage.local.set({
+        await browser.storage.local.set({
             'pendingSearchResults': pendingSearchResults
         });
         
         // 打开popup窗口
         try {
-            await chrome.action.openPopup();
+            await browser.action.openPopup();
             console.log('popup窗口已打开，等待ready信号...');
         } catch (error) {
             console.log('无法自动打开popup，可能需要用户手动点击:', error.message);
@@ -783,13 +782,13 @@ async function handleNoMatchResults(request) {
         };
         
         // 同时存储到storage作为备用
-        await chrome.storage.local.set({
+        await browser.storage.local.set({
             'pendingNoMatchResults': pendingNoMatchResults
         });
         
         // 打开popup窗口
         try {
-            await chrome.action.openPopup();
+            await browser.action.openPopup();
             console.log('popup窗口已打开，等待ready信号...');
         } catch (error) {
             console.log('无法自动打开popup，可能需要用户手动点击:', error.message);
@@ -811,7 +810,7 @@ async function handleNoMatchResults(request) {
 // 清理过期弹幕数据（异步执行，不阻塞主流程）
 async function cleanupExpiredDanmaku() {
     try {
-        const allData = await chrome.storage.local.get();
+        const allData = await browser.storage.local.get();
         const keysToRemove = [];
         const oneDay = 60 * 1000; // 1天过期时间
         
@@ -830,7 +829,7 @@ async function cleanupExpiredDanmaku() {
         }
         
         if (keysToRemove.length > 0) {
-            await chrome.storage.local.remove(keysToRemove);
+            await browser.storage.local.remove(keysToRemove);
             console.log(`已清理 ${keysToRemove.length} 个过期弹幕数据`);
         } else {
             console.log('没有发现过期的弹幕数据');
@@ -841,18 +840,18 @@ async function cleanupExpiredDanmaku() {
 }
 
 // 扩展启动时清理过期数据
-chrome.runtime.onStartup.addListener(() => {
+browser.runtime.onStartup.addListener(() => {
     console.log('浏览器启动，异步清理过期弹幕数据');
     cleanupExpiredDanmaku();
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+browser.runtime.onInstalled.addListener(() => {
     console.log('扩展安装/更新，异步清理过期弹幕数据');
     cleanupExpiredDanmaku();
 });
 
 // 监听来自popup的消息
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'downloadDanmaku') {
         downloadAllDanmaku(request.bvid)
             .then(async (data) => {
@@ -868,7 +867,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }
                 };
                 
-                await chrome.storage.local.set(storageData);
+                await browser.storage.local.set(storageData);
                 
                 // 异步清理过期弹幕数据，不阻塞响应
                 Promise.resolve().then(() => {
@@ -984,7 +983,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // 如果内存中没有数据，尝试从storage获取
             if (!dataToSend && !noMatchDataToSend) {
                 try {
-                    const result = await chrome.storage.local.get(['pendingSearchResults', 'pendingNoMatchResults']);
+                    const result = await browser.storage.local.get(['pendingSearchResults', 'pendingNoMatchResults']);
                     dataToSend = result.pendingSearchResults;
                     noMatchDataToSend = result.pendingNoMatchResults;
                 } catch (error) {
@@ -1001,12 +1000,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     
                     // 发送搜索结果给popup（使用延迟确保popup完全准备好）
                     setTimeout(() => {
-                        chrome.runtime.sendMessage({
+                        browser.runtime.sendMessage({
                             type: 'displayMultipleResults',
                             data: dataToSend
                         }).then(() => {
                             // 发送成功后清理storage中的数据
-                            chrome.storage.local.remove('pendingSearchResults');
+                            browser.storage.local.remove('pendingSearchResults');
                             pendingSearchResults = null;
                             console.log('已清理pendingSearchResults数据');
                         }).catch(error => {
@@ -1018,7 +1017,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 } else {
                     console.log('搜索结果已过期，清理数据');
                     pendingSearchResults = null;
-                    chrome.storage.local.remove('pendingSearchResults');
+                    browser.storage.local.remove('pendingSearchResults');
                     sendResponse({ success: false, message: 'results expired' });
                 }
             } else if (noMatchDataToSend) {
@@ -1030,12 +1029,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     
                     // 发送未匹配结果给popup（使用延迟确保popup完全准备好）
                     setTimeout(() => {
-                        chrome.runtime.sendMessage({
+                        browser.runtime.sendMessage({
                             type: 'displayNoMatchResults',
                             data: noMatchDataToSend
                         }).then(() => {
                             // 发送成功后清理storage中的数据
-                            chrome.storage.local.remove('pendingNoMatchResults');
+                            browser.storage.local.remove('pendingNoMatchResults');
                             pendingNoMatchResults = null;
                             console.log('已清理pendingNoMatchResults数据');
                         }).catch(error => {
@@ -1047,7 +1046,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 } else {
                     console.log('未匹配结果已过期，清理数据');
                     pendingNoMatchResults = null;
-                    chrome.storage.local.remove('pendingNoMatchResults');
+                    browser.storage.local.remove('pendingNoMatchResults');
                     sendResponse({ success: false, message: 'no match results expired' });
                 }
             } else {
@@ -1062,7 +1061,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('清理搜索结果数据');
         pendingSearchResults = null;
         pendingNoMatchResults = null;
-        chrome.storage.local.remove(['pendingSearchResults', 'pendingNoMatchResults']);
+        browser.storage.local.remove(['pendingSearchResults', 'pendingNoMatchResults']);
         sendResponse({ success: true });
         
         return true;
