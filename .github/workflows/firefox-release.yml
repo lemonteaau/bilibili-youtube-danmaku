@@ -76,7 +76,6 @@ jobs:
       run: |
         VERSION=${{ steps.get_version.outputs.version }}
         PACKAGE_NAME="B2Y-Firefox-v$VERSION.zip"
-        XPI_NAME="B2Y-Firefox-v$VERSION.xpi"
         
         echo "📦 开始打包 Firefox 扩展..."
         
@@ -121,30 +120,23 @@ jobs:
         项目地址：https://github.com/lemonteaau/bilibili-youtube-danmaku
         EOF
         
-        # 创建 ZIP 包（用于手动安装）
+        # 创建 ZIP 包
         echo "🗜️  创建 ZIP 包..."
         cd temp_package
         zip -r "../$PACKAGE_NAME" . -x "*.DS_Store" "*/.DS_Store"
         cd ..
-        
-        # 创建 XPI 包（Firefox 扩展格式）
-        echo "🦊 创建 XPI 包..."
-        cp "$PACKAGE_NAME" "$XPI_NAME"
         
         # 清理临时目录
         rm -rf temp_package
         
         # 计算文件大小
         ZIP_SIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
-        XPI_SIZE=$(du -h "$XPI_NAME" | cut -f1)
         
         echo "✅ Firefox 扩展包创建完成:"
         echo "  📦 ZIP 包: $PACKAGE_NAME ($ZIP_SIZE)"
-        echo "  🦊 XPI 包: $XPI_NAME ($XPI_SIZE)"
         
         # 设置环境变量
         echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
-        echo "xpi_name=$XPI_NAME" >> $GITHUB_ENV
         
     - name: 生成 Release 说明
       if: steps.check_release.outputs.exists == 'false'
@@ -156,26 +148,19 @@ jobs:
         
         这是专为 Firefox 浏览器优化的 B2Y 扩展版本，可以在 YouTube 上同步显示 Bilibili 弹幕。
         
-        ## 📦 安装文件说明
+        ## 📦 安装方式
         
-        - **B2Y-Firefox-v$VERSION.xpi**: Firefox 扩展格式，**推荐下载**
-        - **B2Y-Firefox-v$VERSION.zip**: 标准 ZIP 格式，适用于临时安装
-        - 两个文件功能完全相同，推荐使用 .xpi 文件
+        下载 **B2Y-Firefox-v$VERSION.zip** 文件，按以下步骤安装：
         
-        ## 🚀 推荐安装方式
+        ## 🚀 安装步骤
         
-        ### 方法一：开发者模式安装（推荐）
-        1. 下载上方的 **`.xpi`** 文件
-        2. Firefox 中打开 `about:config`
-        3. 搜索 `xpinstall.signatures.required` 并设置为 `false`
-        4. 重启 Firefox
-        5. 直接拖拽 `.xpi` 文件到 Firefox 窗口，或双击安装
-        
-        ### 方法二：临时安装（开发测试）
-        1. 下载 `.zip` 文件并解压
-        2. Firefox 中打开 `about:debugging`
-        3. 点击"此 Firefox" → "临时载入附加组件"
-        4. 选择解压后的 `manifest.json` 文件
+        1. 下载上方的 **`.zip`** 文件并解压到本地文件夹
+        2. 打开 Firefox 浏览器
+        3. 在地址栏输入 `about:debugging`
+        4. 点击左侧的 "此 Firefox"
+        5. 点击 "临时载入附加组件"
+        6. 选择解压后文件夹中的 `manifest.json` 文件
+        7. 扩展安装完成！
         
         ## ⚠️  注意事项
         
@@ -194,7 +179,6 @@ jobs:
         VERSION=${{ steps.get_version.outputs.version }}
         TAG_NAME="firefox-v$VERSION"
         PACKAGE_NAME="B2Y-Firefox-v$VERSION.zip"
-        XPI_NAME="B2Y-Firefox-v$VERSION.xpi"
         
         echo "🚀 创建 Firefox Release: $TAG_NAME"
         
@@ -203,13 +187,11 @@ jobs:
           --title "🦊 B2Y Firefox v$VERSION" \
           --notes-file release_notes.md \
           --latest \
-          "$PACKAGE_NAME" \
-          "$XPI_NAME"
+          "$PACKAGE_NAME"
           
         echo "✅ Firefox Release $TAG_NAME 创建成功"
         echo "📦 已上传文件:"
         echo "  - $PACKAGE_NAME (ZIP 格式)"
-        echo "  - $XPI_NAME (XPI 格式)"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
@@ -224,14 +206,14 @@ jobs:
         echo "📋 发布信息:"
         echo "  🏷️  标签: $TAG_NAME"
         echo "  📦 ZIP 包: B2Y-Firefox-v$VERSION.zip"
-        echo "  🦊 XPI 包: B2Y-Firefox-v$VERSION.xpi"
         echo ""
         echo "🔗 Release 链接:"
         echo "  https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
         echo ""
-        echo "📥 用户可以通过以下方式安装:"
-        echo "  1. 下载 ZIP 包，解压后通过 about:debugging 临时安装"
-        echo "  2. 下载 XPI 包，在开发者模式下直接安装"
+        echo "📥 用户安装方式:"
+        echo "  1. 下载 ZIP 包并解压"
+        echo "  2. Firefox 中打开 about:debugging"
+        echo "  3. 临时载入附加组件，选择 manifest.json"
         
     - name: 跳过发布提示  
       if: steps.check_release.outputs.exists == 'true'

@@ -9,29 +9,21 @@
 
 **[🚀 前往 Release 页面下载最新版本](https://github.com/lemonteaau/bilibili-youtube-danmaku/releases)**
 
+### 安装步骤
+
 1. 访问上方 Release 页面
-2. 下载最新版本的 `B2Y-Firefox-v*.xpi` 文件
-3. 根据下面的安装方法进行安装
+2. 下载最新版本的 `B2Y-Firefox-v*.zip` 文件并解压到本地文件夹
+3. 打开 Firefox 浏览器
+4. 在地址栏输入 `about:debugging`
+5. 点击左侧的 "此 Firefox"
+6. 点击 "临时载入附加组件"
+7. 选择解压后文件夹中的 `manifest.json` 文件
+8. 扩展安装完成！
 
-### 安装方法
+### 注意事项
 
-#### 方法一：开发者模式安装（推荐）
-
-1. 在 Firefox 中打开 `about:config`
-2. 搜索 `xpinstall.signatures.required`
-3. 将值设置为 `false`（注意：这会降低安全性）
-4. 重启 Firefox
-5. 直接拖拽下载的 `.xpi` 文件到 Firefox 窗口，或双击 `.xpi` 文件安装
-
-#### 方法二：临时安装（开发测试）
-
-1. 下载 `B2Y-Firefox-v*.zip` 文件并解压
-2. 打开 Firefox 浏览器
-3. 在地址栏输入 `about:debugging`
-4. 点击左侧的 "此 Firefox"
-5. 点击 "临时载入附加组件"
-6. 选择解压后文件夹中的 `manifest.json` 文件
-7. 扩展将被临时安装（重启浏览器后会消失）
+- 此方式安装的扩展在浏览器重启后会被移除，需要重新安装
+- 扩展功能完全正常，只是每次重启需要重新载入
 
 ## 🔧 Firefox 特定说明
 
