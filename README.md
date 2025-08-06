@@ -79,3 +79,5 @@
 - ✨ 优化了视频标题匹配模式
 - ⚡ 提高了弹幕帧率
 
+### [☕️支持我～]https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/blob/main/DONATE.md
+
