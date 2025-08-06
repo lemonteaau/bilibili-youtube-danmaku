@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'manifest.json'  # 只有当 manifest.json 发生变化时才触发
+  workflow_dispatch:  # 支持手动触发
 
 permissions:
   contents: write
