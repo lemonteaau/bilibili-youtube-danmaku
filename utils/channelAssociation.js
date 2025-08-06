@@ -3,6 +3,8 @@
  * 统一管理 YouTube 频道与 B站 UP主的关联关系
  */
 
+// Firefox compatibility: browserAPI is now provided by lib/browser-api.js
+
 class ChannelAssociationManager {
     constructor() {
         this.STORAGE_KEY = 'channelMappings';
@@ -69,7 +71,7 @@ class ChannelAssociationManager {
                 throw new Error('缺少必要的关联参数');
             }
 
-            const result = await chrome.storage.local.get(this.STORAGE_KEY);
+            const result = await browserAPI.storage.local.get(this.STORAGE_KEY);
             const mappings = result[this.STORAGE_KEY] || {};
             
             mappings[channelId] = {
@@ -79,7 +81,7 @@ class ChannelAssociationManager {
                 lastUpdate: Date.now()
             };
 
-            await chrome.storage.local.set({ [this.STORAGE_KEY]: mappings });
+            await browserAPI.storage.local.set({ [this.STORAGE_KEY]: mappings });
             return true;
         } catch (error) {
             console.error('保存频道关联失败:', error);
@@ -96,12 +98,12 @@ class ChannelAssociationManager {
         try {
             if (!channelId) return false;
 
-            const result = await chrome.storage.local.get(this.STORAGE_KEY);
+            const result = await browserAPI.storage.local.get(this.STORAGE_KEY);
             const mappings = result[this.STORAGE_KEY] || {};
             
             delete mappings[channelId];
             
-            await chrome.storage.local.set({ [this.STORAGE_KEY]: mappings });
+            await browserAPI.storage.local.set({ [this.STORAGE_KEY]: mappings });
             return true;
         } catch (error) {
             console.error('删除频道关联失败:', error);
@@ -115,7 +117,7 @@ class ChannelAssociationManager {
      */
     async getAllAssociations() {
         try {
-            const result = await chrome.storage.local.get(this.STORAGE_KEY);
+            const result = await browserAPI.storage.local.get(this.STORAGE_KEY);
             return result[this.STORAGE_KEY] || {};
         } catch (error) {
             console.error('获取所有关联失败:', error);
@@ -182,7 +184,7 @@ class ChannelAssociationManager {
      */
     async getLocalAssociation(channelId) {
         try {
-            const result = await chrome.storage.local.get(this.STORAGE_KEY);
+            const result = await browserAPI.storage.local.get(this.STORAGE_KEY);
             const mappings = result[this.STORAGE_KEY] || {};
             return mappings[channelId] || null;
         } catch (error) {

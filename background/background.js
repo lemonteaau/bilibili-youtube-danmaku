@@ -1,5 +1,13 @@
-// 导入番剧处理模块
-importScripts('bangumi.js');
+// Firefox compatibility: browserAPI is now provided by lib/browser-api.js
+
+// 导入番剧处理模块 - Firefox compatible
+if (typeof importScripts !== 'undefined') {
+    // Chrome/Chromium service worker
+    importScripts('bangumi.js');
+} else {
+    // Firefox background script - load module differently if needed
+    // In Firefox, scripts are loaded via manifest, so bangumi.js is already available
+}
 
 // 页面状态管理
 let tabPageStates = new Map(); // 存储每个标签页的页面状态
@@ -41,7 +49,7 @@ function cleanupExpiredPageStates() {
 setInterval(cleanupExpiredPageStates, 60000); // 每分钟清理一次
 
 // 监听标签页关闭事件
-chrome.tabs.onRemoved.addListener((tabId) => {
+browserAPI.tabs.onRemoved.addListener((tabId) => {
     clearTabPageState(tabId);
 });
 
@@ -336,9 +344,15 @@ async function getSegmentDanmaku(cid, aid, segmentIndex, wbiKeys) {
     return parseDanmakuData(buffer);
 }
 
-// 引入protobuf解析器和OpenCC库
-importScripts('../lib/protobuf-parser.js');
-importScripts('../lib/opencc.min.js');
+// 引入protobuf解析器和OpenCC库 - Firefox compatible
+if (typeof importScripts !== 'undefined') {
+    // Chrome/Chromium service worker
+    importScripts('../lib/protobuf-parser.js');
+    importScripts('../lib/opencc.min.js');
+} else {
+    // Firefox background script - scripts loaded via manifest
+    // protobuf-parser.js and opencc.min.js should be included in manifest
+}
 
 // 初始化OpenCC转换器
 let openccConverter = null;
@@ -746,13 +760,13 @@ async function handleMultipleResults(request) {
         };
         
         // 同时存储到storage作为备用
-        await chrome.storage.local.set({
+        await browserAPI.storage.local.set({
             'pendingSearchResults': pendingSearchResults
         });
         
         // 打开popup窗口
         try {
-            await chrome.action.openPopup();
+            await browserAPI.action.openPopup();
             console.log('popup窗口已打开，等待ready信号...');
         } catch (error) {
             console.log('无法自动打开popup，可能需要用户手动点击:', error.message);
@@ -783,13 +797,13 @@ async function handleNoMatchResults(request) {
         };
         
         // 同时存储到storage作为备用
-        await chrome.storage.local.set({
+        await browserAPI.storage.local.set({
             'pendingNoMatchResults': pendingNoMatchResults
         });
         
         // 打开popup窗口
         try {
-            await chrome.action.openPopup();
+            await browserAPI.action.openPopup();
             console.log('popup窗口已打开，等待ready信号...');
         } catch (error) {
             console.log('无法自动打开popup，可能需要用户手动点击:', error.message);
@@ -811,7 +825,7 @@ async function handleNoMatchResults(request) {
 // 清理过期弹幕数据（异步执行，不阻塞主流程）
 async function cleanupExpiredDanmaku() {
     try {
-        const allData = await chrome.storage.local.get();
+        const allData = await browserAPI.storage.local.get();
         const keysToRemove = [];
         const oneDay = 60 * 1000; // 1天过期时间
         
@@ -830,7 +844,7 @@ async function cleanupExpiredDanmaku() {
         }
         
         if (keysToRemove.length > 0) {
-            await chrome.storage.local.remove(keysToRemove);
+            await browserAPI.storage.local.remove(keysToRemove);
             console.log(`已清理 ${keysToRemove.length} 个过期弹幕数据`);
         } else {
             console.log('没有发现过期的弹幕数据');
@@ -841,18 +855,18 @@ async function cleanupExpiredDanmaku() {
 }
 
 // 扩展启动时清理过期数据
-chrome.runtime.onStartup.addListener(() => {
+browserAPI.runtime.onStartup.addListener(() => {
     console.log('浏览器启动，异步清理过期弹幕数据');
     cleanupExpiredDanmaku();
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+browserAPI.runtime.onInstalled.addListener(() => {
     console.log('扩展安装/更新，异步清理过期弹幕数据');
     cleanupExpiredDanmaku();
 });
 
 // 监听来自popup的消息
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'downloadDanmaku') {
         downloadAllDanmaku(request.bvid)
             .then(async (data) => {
@@ -868,7 +882,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }
                 };
                 
-                await chrome.storage.local.set(storageData);
+                await browserAPI.storage.local.set(storageData);
                 
                 // 异步清理过期弹幕数据，不阻塞响应
                 Promise.resolve().then(() => {
@@ -923,7 +937,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }
                 };
                 
-                await chrome.storage.local.set(storageData);
+                await browserAPI.storage.local.set(storageData);
                 
                 // 异步清理过期弹幕数据，不阻塞响应
                 Promise.resolve().then(() => {
@@ -984,7 +998,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // 如果内存中没有数据，尝试从storage获取
             if (!dataToSend && !noMatchDataToSend) {
                 try {
-                    const result = await chrome.storage.local.get(['pendingSearchResults', 'pendingNoMatchResults']);
+                    const result = await browserAPI.storage.local.get(['pendingSearchResults', 'pendingNoMatchResults']);
                     dataToSend = result.pendingSearchResults;
                     noMatchDataToSend = result.pendingNoMatchResults;
                 } catch (error) {
@@ -1001,12 +1015,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     
                     // 发送搜索结果给popup（使用延迟确保popup完全准备好）
                     setTimeout(() => {
-                        chrome.runtime.sendMessage({
+                        browserAPI.runtime.sendMessage({
                             type: 'displayMultipleResults',
                             data: dataToSend
                         }).then(() => {
                             // 发送成功后清理storage中的数据
-                            chrome.storage.local.remove('pendingSearchResults');
+                            browserAPI.storage.local.remove('pendingSearchResults');
                             pendingSearchResults = null;
                             console.log('已清理pendingSearchResults数据');
                         }).catch(error => {
@@ -1018,7 +1032,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 } else {
                     console.log('搜索结果已过期，清理数据');
                     pendingSearchResults = null;
-                    chrome.storage.local.remove('pendingSearchResults');
+                    browserAPI.storage.local.remove('pendingSearchResults');
                     sendResponse({ success: false, message: 'results expired' });
                 }
             } else if (noMatchDataToSend) {
@@ -1030,12 +1044,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     
                     // 发送未匹配结果给popup（使用延迟确保popup完全准备好）
                     setTimeout(() => {
-                        chrome.runtime.sendMessage({
+                        browserAPI.runtime.sendMessage({
                             type: 'displayNoMatchResults',
                             data: noMatchDataToSend
                         }).then(() => {
                             // 发送成功后清理storage中的数据
-                            chrome.storage.local.remove('pendingNoMatchResults');
+                            browserAPI.storage.local.remove('pendingNoMatchResults');
                             pendingNoMatchResults = null;
                             console.log('已清理pendingNoMatchResults数据');
                         }).catch(error => {
@@ -1047,7 +1061,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 } else {
                     console.log('未匹配结果已过期，清理数据');
                     pendingNoMatchResults = null;
-                    chrome.storage.local.remove('pendingNoMatchResults');
+                    browserAPI.storage.local.remove('pendingNoMatchResults');
                     sendResponse({ success: false, message: 'no match results expired' });
                 }
             } else {
@@ -1062,7 +1076,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('清理搜索结果数据');
         pendingSearchResults = null;
         pendingNoMatchResults = null;
-        chrome.storage.local.remove(['pendingSearchResults', 'pendingNoMatchResults']);
+        browserAPI.storage.local.remove(['pendingSearchResults', 'pendingNoMatchResults']);
         sendResponse({ success: true });
         
         return true;
@@ -1114,7 +1128,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         (async () => {
             try {
                 // 获取当前活跃标签页
-                const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                const [activeTab] = await browserAPI.tabs.query({ active: true, currentWindow: true });
                 
                 if (!activeTab || !activeTab.id) {
                     sendResponse({ success: false, error: '无法获取当前标签页' });
@@ -1143,13 +1157,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 // 没有缓存或缓存过期，请求content script获取最新信息
                 console.log('向content script请求最新页面信息');
                 
-                chrome.tabs.sendMessage(activeTab.id, {
+                browserAPI.tabs.sendMessage(activeTab.id, {
                     type: 'getPageInfo'
                 }, (response) => {
-                    if (chrome.runtime.lastError) {
+                    if (browserAPI.runtime.lastError) {
                         sendResponse({ 
                             success: false, 
-                            error: 'content script未响应: ' + chrome.runtime.lastError.message 
+                            error: 'content script未响应: ' + browserAPI.runtime.lastError.message 
                         });
                         return;
                     }

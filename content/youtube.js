@@ -1,3 +1,5 @@
+// Firefox compatibility: browserAPI is now provided by lib/browser-api.js
+
 let danmakuEngine = null;
 let currentVideoId = null;
 let currentPageInfo = null;
@@ -209,7 +211,7 @@ async function updateCurrentPageInfo() {
             pageInfoCache.set(videoId, pageInfo);
             
             // 通知background script页面信息已更新
-            chrome.runtime.sendMessage({
+            browserAPI.runtime.sendMessage({
                 type: 'pageInfoUpdated',
                 pageInfo: pageInfo
             }).catch(error => console.log('通知页面信息更新失败:', error));
@@ -245,7 +247,7 @@ async function getOriginalVideoTitle(videoId) {
         console.log('尝试通过oEmbed API获取原始标题:', oembedUrl);
         
         // 发送请求到background script处理CORS
-        const response = await chrome.runtime.sendMessage({
+        const response = await browserAPI.runtime.sendMessage({
             type: 'fetchOriginalTitle',
             oembedUrl: oembedUrl,
             videoId: videoId
@@ -370,7 +372,7 @@ async function initDanmakuEngine() {
 
 // 加载设置
 async function loadSettings() {
-    const result = await chrome.storage.local.get('danmakuSettings');
+    const result = await browserAPI.storage.local.get('danmakuSettings');
     const settings = result.danmakuSettings || {
         enabled: true,
         timeOffset: 0,
@@ -386,7 +388,7 @@ async function loadSettings() {
 // 加载视频弹幕
 async function loadDanmakuForVideo(videoId) {
     try {
-        const result = await chrome.storage.local.get(videoId);
+        const result = await browserAPI.storage.local.get(videoId);
         if (result[videoId] && result[videoId].danmakus) {
             const data = result[videoId];
             console.log(`加载弹幕数据: ${data.danmakus.length} 条`);
@@ -446,7 +448,7 @@ async function autoCheckAndDownloadDanmaku() {
                 
                 try {
                     // 直接调用番剧弹幕下载
-                    const response = await chrome.runtime.sendMessage({
+                    const response = await browserAPI.runtime.sendMessage({
                         type: 'downloadBangumiDanmaku',
                         title: parseResult.title,
                         episodeNumber: parseResult.episode,
@@ -457,7 +459,7 @@ async function autoCheckAndDownloadDanmaku() {
                         console.log(`番剧弹幕自动下载成功: ${response.count} 条`);
                         
                         // 异步触发清理过期弹幕数据
-                        chrome.runtime.sendMessage({
+                        browserAPI.runtime.sendMessage({
                             type: 'cleanupExpiredDanmaku'
                         }).then(() => console.log('清理成功')).catch(error => console.log('触发清理失败:', error));
                         
@@ -495,7 +497,7 @@ async function autoCheckAndDownloadDanmaku() {
         });
         
         // 发送搜索请求到background script
-        const searchResponse = await chrome.runtime.sendMessage({
+        const searchResponse = await browserAPI.runtime.sendMessage({
             type: 'searchBilibiliVideo',
             bilibiliUID: association.bilibiliUID,
             videoTitle: videoTitle,
@@ -510,7 +512,7 @@ async function autoCheckAndDownloadDanmaku() {
                 const bvid = searchResponse.results[0].bvid;
                 console.log('只有一个匹配结果，自动下载弹幕:', bvid);
                 
-                const downloadResponse = await chrome.runtime.sendMessage({
+                const downloadResponse = await browserAPI.runtime.sendMessage({
                     type: 'downloadDanmaku',
                     bvid: bvid,
                     youtubeVideoId: videoId
@@ -520,7 +522,7 @@ async function autoCheckAndDownloadDanmaku() {
                     console.log(`自动下载弹幕成功: ${downloadResponse.count} 条`);
                     
                     // 异步触发清理过期弹幕数据
-                    chrome.runtime.sendMessage({
+                    browserAPI.runtime.sendMessage({
                         type: 'cleanupExpiredDanmaku'
                     }).then(() => console.log('清理成功')).catch(error => console.log('触发清理失败:', error));
                     // 重新加载弹幕到引擎
@@ -534,7 +536,7 @@ async function autoCheckAndDownloadDanmaku() {
                 console.log('找到多个匹配结果，需要用户手动选择');
                 
                 // 发送消息给background打开选择窗口
-                chrome.runtime.sendMessage({
+                browserAPI.runtime.sendMessage({
                     type: 'showMultipleResults',
                     results: searchResponse.results,
                     youtubeVideoId: videoId,
@@ -546,7 +548,7 @@ async function autoCheckAndDownloadDanmaku() {
             console.log('未找到匹配的B站视频');
             
             // 发送消息给background打开选择窗口
-            chrome.runtime.sendMessage({
+            browserAPI.runtime.sendMessage({
                 type: 'showNoMatchResults',
                 youtubeVideoId: videoId,
                 channelInfo: channelInfo,
@@ -585,7 +587,7 @@ function handleUrlChange() {
         }
         
         // 通知background script页面切换
-        chrome.runtime.sendMessage({
+        browserAPI.runtime.sendMessage({
             type: 'pageChanged',
             videoId: videoId,
             oldVideoId: oldVideoId,
@@ -602,7 +604,7 @@ function handleUrlChange() {
 }
 
 // 监听来自popup的消息
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'updateSettings') {
         if (danmakuEngine) {
             danmakuEngine.updateSettings(request.settings);

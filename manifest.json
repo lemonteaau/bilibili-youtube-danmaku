@@ -13,7 +13,21 @@
         "https://www.youtube.com/oembed*"
     ],
     "background": {
-        "service_worker": "background/background.js"
+        "scripts": [
+            "lib/browser-api.js",
+            "lib/protobuf-parser.js",
+            "lib/opencc.min.js",
+            "utils/channelAssociation.js",
+            "background/bangumi.js",
+            "background/background.js"
+        ],
+        "persistent": false
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "b2y-danmaku@firefox.extension",
+            "strict_min_version": "109.0"
+        }
     },
     "content_scripts": [
         {
@@ -21,6 +35,7 @@
                 "https://www.youtube.com/*"
             ],
             "js": [
+                "lib/browser-api.js",
                 "utils/channelAssociation.js",
                 "content/danmaku-engine.js",
                 "content/youtube.js"
