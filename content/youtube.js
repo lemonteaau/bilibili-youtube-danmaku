@@ -479,8 +479,10 @@ async function autoCheckAndDownloadDanmaku() {
             return;
         }
         
-        // 检查频道是否已关联 - 使用关联工具类
-        const association = await getChannelAssociation(channelInfo.channelId);
+        // 检查频道是否已关联
+        const mappingResult = await browser.storage.local.get('channelMappings');
+        const mappings = mappingResult.channelMappings || {};
+        const association = mappings[channelInfo.channelId];
         
         if (!association) {
             console.log('频道未关联B站UP主，跳过自动检测');
