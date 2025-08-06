@@ -53,6 +53,7 @@ jobs:
         cp -r background/ temp_package/
         cp -r content/ temp_package/
         cp -r lib/ temp_package/
+        cp -r utils/ temp_package/
         cp -r popup/ temp_package/
         cp manifest.json temp_package/
         
