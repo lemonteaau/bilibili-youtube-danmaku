@@ -89,7 +89,7 @@ jobs:
       run: |
         VERSION=${{ steps.get_version.outputs.version }}
         echo "🎉 Chrome 插件 v$VERSION 已成功打包并发布到 Release!"
-        echo "📦 包含文件: assets/, background/, content/, lib/, popup/, manifest.json"
+        echo "📦 包含文件: assets/, background/, content/, lib/, popup/, utils/, manifest.json"
         echo "🚫 已排除文件: social-config.json, README.md, .git/, .github/"
         
     - name: 跳过发布提示  
