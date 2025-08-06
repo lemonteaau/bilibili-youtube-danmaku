@@ -1,6 +1,50 @@
 // 导入番剧处理模块
 importScripts('bangumi.js');
 
+// 页面状态管理
+let tabPageStates = new Map(); // 存储每个标签页的页面状态
+
+// 页面状态管理函数
+function getTabPageState(tabId) {
+    return tabPageStates.get(tabId) || null;
+}
+
+function setTabPageState(tabId, pageInfo) {
+    tabPageStates.set(tabId, {
+        ...pageInfo,
+        lastUpdate: Date.now()
+    });
+    console.log(`更新标签页${tabId}状态:`, pageInfo.videoId);
+}
+
+function clearTabPageState(tabId) {
+    if (tabPageStates.has(tabId)) {
+        console.log(`清除标签页${tabId}状态`);
+        tabPageStates.delete(tabId);
+    }
+}
+
+// 清理过期的页面状态（30秒过期）
+function cleanupExpiredPageStates() {
+    const now = Date.now();
+    const expireTime = 30000; // 30秒
+    
+    for (const [tabId, state] of tabPageStates.entries()) {
+        if (now - state.lastUpdate > expireTime) {
+            tabPageStates.delete(tabId);
+            console.log(`清理过期页面状态: 标签页${tabId}`);
+        }
+    }
+}
+
+// 定期清理过期状态
+setInterval(cleanupExpiredPageStates, 60000); // 每分钟清理一次
+
+// 监听标签页关闭事件
+chrome.tabs.onRemoved.addListener((tabId) => {
+    clearTabPageState(tabId);
+});
+
 // WBI签名相关配置
 const mixinKeyEncTab = [
     46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
@@ -306,6 +350,34 @@ try {
     console.error('OpenCC转换器初始化失败:', error);
 }
 
+// 清理视频标题函数
+function cleanVideoTitle(title) {
+    if (!title || typeof title !== 'string') return title;
+    
+    let cleanedTitle = title;
+    
+    // 1. 去除【UP主名】格式的内容
+    cleanedTitle = cleanedTitle.replace(/【[^】]*】/g, '');
+    
+    // 2. 去除标题开头的【】（可能是其他格式）
+    cleanedTitle = cleanedTitle.replace(/^【[^】]*】\s*/g, '');
+    
+    // 3. 去除末尾的标签（#标签格式）
+    cleanedTitle = cleanedTitle.replace(/\s*#[^\s#]+(\s*#[^\s#]+)*\s*$/g, '');
+    
+    // 4. 去除多余的空格并清理首尾
+    cleanedTitle = cleanedTitle.replace(/\s+/g, ' ').trim();
+    
+    // 5. 如果清理后为空，返回原标题
+    if (!cleanedTitle) {
+        console.warn('标题清理后为空，返回原标题:', title);
+        return title.trim();
+    }
+    
+    console.log(`标题清理: "${title}" → "${cleanedTitle}"`);
+    return cleanedTitle;
+}
+
 // 繁体转简体函数
 function traditionalToSimplifiedChinese(text) {
     if (!text || typeof text !== 'string') return text;
@@ -416,7 +488,8 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
     try {
         // 繁体转简体
         const simplifiedTitle = traditionalToSimplifiedChinese(videoTitle);
-        console.log(`搜索标题: ${videoTitle} → ${simplifiedTitle}`);
+        const cleanedTitle = cleanVideoTitle(simplifiedTitle);
+        console.log(`搜索标题: ${videoTitle} → ${cleanedTitle}`);
         
         // 获取WBI Keys
         const wbiKeys = await getWbiKeys();
@@ -427,7 +500,7 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
             ps: 30,
             tid: 0,
             pn: 1,
-            keyword: simplifiedTitle,
+            keyword: cleanedTitle,
             order: 'pubdate',
             web_location: 1550101,
             wts: Math.round(Date.now() / 1000)
@@ -466,7 +539,7 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
         // 如果首次搜索无结果，尝试按分割符拆分标题重新搜索
         if (results.length === 0) {
             console.log('首次搜索无结果，尝试分割标题重新搜索');
-            const fallbackResult = await searchWithSplitTitle(bilibiliUID, simplifiedTitle, wbiKeys);
+            const fallbackResult = await searchWithSplitTitle(bilibiliUID, cleanedTitle, wbiKeys);
             if (fallbackResult.success && fallbackResult.results.length > 0) {
                 return fallbackResult;
             }
@@ -500,6 +573,7 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
 // 分割标题重新搜索的辅助函数
 async function searchWithSplitTitle(bilibiliUID, title, wbiKeys) {
     try {
+        
         // 尝试全角和半角分割符
         const separators = ['｜', '|'];
         
@@ -507,14 +581,18 @@ async function searchWithSplitTitle(bilibiliUID, title, wbiKeys) {
             if (title.includes(separator)) {
                 const parts = title.split(separator);
                 // 选择最长的部分（去除前后空格）
-                const longestPart = parts
+                let longestPart = parts
                     .map(part => part.trim())
                     .filter(part => part.length > 0) // 过滤空字符串
                     .reduce((longest, current) => 
                         current.length > longest.length ? current : longest
                     );
                 
-                console.log(`使用分割符"${separator}"，最长部分: ${longestPart}`);
+                // 清理标题：去除【UP主名】和末尾标签
+                const originalPart = longestPart;
+                longestPart = cleanVideoTitle(longestPart);
+                
+                console.log(`使用分割符"${separator}"，最长部分: ${originalPart} → 清理后: ${longestPart}`);
                 
                 // 用最长部分重新搜索
                 const params = {
@@ -998,6 +1076,93 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         sendResponse({ success: true });
         return true;
+    } else if (request.type === 'pageChanged') {
+        // 页面切换通知
+        console.log('页面切换:', request.videoId);
+        
+        // 清除旧的页面状态
+        if (sender.tab && sender.tab.id) {
+            clearTabPageState(sender.tab.id);
+        }
+        
+        sendResponse({ success: true });
+        return true;
+    } else if (request.type === 'pageInfoUpdated') {
+        // 页面信息更新通知
+        console.log('页面信息更新:', request.pageInfo.videoId);
+        
+        if (sender.tab && sender.tab.id) {
+            setTabPageState(sender.tab.id, request.pageInfo);
+        }
+        
+        sendResponse({ success: true });
+        return true;
+    } else if (request.type === 'getPageInfoFromBackground') {
+        // popup请求从background获取页面信息
+        (async () => {
+            try {
+                // 获取当前活跃标签页
+                const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                
+                if (!activeTab || !activeTab.id) {
+                    sendResponse({ success: false, error: '无法获取当前标签页' });
+                    return;
+                }
+                
+                // 检查是否有缓存的页面状态
+                const cachedState = getTabPageState(activeTab.id);
+                
+                if (cachedState) {
+                    // 验证缓存的URL是否与当前标签页匹配
+                    if (cachedState.url === activeTab.url) {
+                        console.log('使用background缓存的页面信息');
+                        sendResponse({
+                            success: true,
+                            data: cachedState,
+                            fromCache: true
+                        });
+                        return;
+                    } else {
+                        console.log('缓存的URL不匹配，清除过期状态');
+                        clearTabPageState(activeTab.id);
+                    }
+                }
+                
+                // 没有缓存或缓存过期，请求content script获取最新信息
+                console.log('向content script请求最新页面信息');
+                
+                chrome.tabs.sendMessage(activeTab.id, {
+                    type: 'getPageInfo'
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        sendResponse({ 
+                            success: false, 
+                            error: 'content script未响应: ' + chrome.runtime.lastError.message 
+                        });
+                        return;
+                    }
+                    
+                    if (response && response.success) {
+                        // 缓存新获取的信息
+                        setTabPageState(activeTab.id, response.data);
+                        sendResponse({
+                            success: true,
+                            data: response.data,
+                            fromCache: false
+                        });
+                    } else {
+                        sendResponse({ 
+                            success: false, 
+                            error: response ? response.error : '获取页面信息失败' 
+                        });
+                    }
+                });
+            } catch (error) {
+                sendResponse({ success: false, error: error.message });
+            }
+        })();
+        
+        return true; // 保持消息通道开启
     }
 });
 

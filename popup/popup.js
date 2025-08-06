@@ -1,3 +1,7 @@
+// 引入频道关联管理工具
+// 由于在扩展环境中，通过script标签加载
+// 工具类会在页面加载时自动初始化为全局变量
+
 // 获取当前标签页信息
 async function getCurrentTab() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -359,9 +363,7 @@ function openBilibiliVideo(url) {
 async function openBilibiliSpace(noMatchData) {
     try {
         // 获取频道映射信息
-        const mappingResult = await chrome.storage.local.get('channelMappings');
-        const mappings = mappingResult.channelMappings || {};
-        const association = mappings[noMatchData.channelInfo.channelId];
+        const association = await getChannelAssociation(noMatchData.channelInfo.channelId);
         
         if (association && association.bilibiliUID) {
             const spaceUrl = `https://space.bilibili.com/${association.bilibiliUID}/video`;
@@ -434,20 +436,58 @@ function displayDanmakuList(danmakus) {
     });
 }
 
-// 获取YouTube页面信息
-async function getPageInfo() {
+// 获取YouTube页面信息（增强版）
+async function getPageInfo(useCache = true) {
     try {
         const tab = await getCurrentTab();
         if (!tab || !tab.url.includes('youtube.com/watch')) {
             return null;
         }
         
+        // 优先从background获取缓存的准确信息
+        if (useCache) {
+            try {
+                const backgroundResponse = await chrome.runtime.sendMessage({
+                    type: 'getPageInfoFromBackground'
+                });
+                
+                if (backgroundResponse && backgroundResponse.success) {
+                    console.log('从background获取页面信息成功:', {
+                        videoId: backgroundResponse.data.videoId,
+                        fromCache: backgroundResponse.fromCache
+                    });
+                    
+                    // 验证获取到的信息是否与当前页面匹配
+                    const currentVideoId = getYouTubeVideoId(tab.url);
+                    if (backgroundResponse.data.videoId === currentVideoId) {
+                        return backgroundResponse.data;
+                    } else {
+                        console.warn('background缓存的视频ID与当前不匹配，fallback到直接获取');
+                    }
+                }
+            } catch (error) {
+                console.warn('从background获取页面信息失败，fallback到直接获取:', error);
+            }
+        }
+        
+        // fallback：直接从content script获取
+        console.log('直接从content script获取页面信息');
         const response = await chrome.tabs.sendMessage(tab.id, {
             type: 'getPageInfo'
         });
         
         if (response && response.success) {
-            return response.data;
+            // 验证获取到的信息
+            const currentVideoId = getYouTubeVideoId(tab.url);
+            if (response.data.videoId === currentVideoId) {
+                return response.data;
+            } else {
+                console.error('获取到的页面信息与当前页面不匹配', {
+                    expected: currentVideoId,
+                    actual: response.data.videoId
+                });
+                return null;
+            }
         }
         return null;
     } catch (error) {
@@ -512,9 +552,7 @@ function displayChannelInfo(pageInfo) {
 // 检查关联状态
 async function checkAssociation(channelId) {
     try {
-        const result = await chrome.storage.local.get('channelMappings');
-        const mappings = result.channelMappings || {};
-        const association = mappings[channelId];
+        const association = await getChannelAssociation(channelId);
         
         const statusText = document.querySelector('.status-text');
         const associationSection = document.getElementById('association-section');
@@ -557,8 +595,12 @@ async function checkAssociation(channelId) {
     }
 }
 
-// 解析B站空间链接
+// 解析B站空间链接 - 现在使用工具类方法
 function parseBilibiliSpaceUrl(url) {
+    if (typeof channelAssociation !== 'undefined') {
+        return channelAssociation.parseBilibiliSpaceUrl(url);
+    }
+    // 降级处理
     const match = url.match(/space\.bilibili\.com\/(\d+)/);
     return match ? match[1] : null;
 }
@@ -591,17 +633,16 @@ async function associateUploader() {
         showStatus('正在验证B站空间...', 'loading');
         
         // 保存关联
-        const result = await chrome.storage.local.get('channelMappings');
-        const mappings = result.channelMappings || {};
-        
-        mappings[channelId] = {
+        const associationData = {
             bilibiliUID: bilibiliUID,
             bilibiliName: '', // 可以后续获取
-            bilibiliSpaceUrl: spaceUrl,
-            lastUpdate: Date.now()
+            bilibiliSpaceUrl: spaceUrl
         };
         
-        await chrome.storage.local.set({ channelMappings: mappings });
+        const success = await saveChannelAssociation(channelId, associationData);
+        if (!success) {
+            throw new Error('保存关联信息失败');
+        }
         
         showStatus('关联成功', 'success');
         
@@ -625,12 +666,10 @@ async function unassociateUploader() {
         
         const channelId = pageInfo.channel.channelId;
         
-        const result = await chrome.storage.local.get('channelMappings');
-        const mappings = result.channelMappings || {};
-        
-        delete mappings[channelId];
-        
-        await chrome.storage.local.set({ channelMappings: mappings });
+        const success = await removeChannelAssociation(channelId);
+        if (!success) {
+            throw new Error('删除关联信息失败');
+        }
         
         showStatus('已取消关联', 'success');
         
@@ -661,9 +700,7 @@ async function autoSearchDanmaku(silent = false) {
         }
         
         // 获取关联信息
-        const result = await chrome.storage.local.get('channelMappings');
-        const mappings = result.channelMappings || {};
-        const association = mappings[channelId];
+        const association = await getChannelAssociation(channelId);
         
         if (!association) {
             if (!silent) showStatus('尚未关联B站UP主', 'error');
@@ -1085,6 +1122,59 @@ async function checkPageTypeAndToggleUI() {
     }
 }
 
+// 显示页面信息刷新按钮
+function showPageInfoRefreshButton() {
+    const channelInfoDiv = document.getElementById('channel-info');
+    if (!channelInfoDiv) return;
+    
+    // 检查是否已经有刷新按钮
+    if (document.getElementById('refresh-page-info-btn')) return;
+    
+    channelInfoDiv.innerHTML = `
+        <div style="text-align: center; padding: 20px;">
+            <p style="color: #666; margin-bottom: 10px;">无法获取当前页面信息</p>
+            <button id="refresh-page-info-btn" style="
+                background-color: #ff4444; 
+                color: white; 
+                border: none; 
+                padding: 8px 16px; 
+                border-radius: 4px; 
+                cursor: pointer;
+            ">刷新页面信息</button>
+        </div>
+    `;
+    
+    // 绑定刷新事件
+    document.getElementById('refresh-page-info-btn').addEventListener('click', async () => {
+        const button = document.getElementById('refresh-page-info-btn');
+        const originalText = button.textContent;
+        
+        button.textContent = '刷新中...';
+        button.disabled = true;
+        
+        try {
+            // 强制重新获取页面信息（不使用缓存）
+            const pageInfo = await getPageInfo(false);
+            
+            if (pageInfo) {
+                displayChannelInfo(pageInfo);
+                showStatus('页面信息已刷新', 'success');
+            } else {
+                showStatus('仍无法获取页面信息，请稍后重试', 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        } catch (error) {
+            console.error('刷新页面信息失败:', error);
+            showStatus('刷新失败: ' + error.message, 'error');
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    });
+    
+    channelInfoDiv.style.display = 'block';
+}
+
 // 打开YouTube主页
 function openYouTube() {
     chrome.tabs.create({ url: 'https://www.youtube.com' });
@@ -1112,6 +1202,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 获取并显示页面信息
     const pageInfo = await getPageInfo();
     displayChannelInfo(pageInfo);
+    
+    // 如果获取页面信息失败，显示刷新按钮
+    if (!pageInfo) {
+        showPageInfoRefreshButton();
+    }
     
     // 检查storage中的备用数据（防止遗漏）
     await checkPendingSearchResults();

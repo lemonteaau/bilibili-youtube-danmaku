@@ -1,5 +1,7 @@
 let danmakuEngine = null;
 let currentVideoId = null;
+let currentPageInfo = null;
+let pageInfoCache = new Map();
 
 // 获取YouTube视频ID
 function getVideoId() {
@@ -7,8 +9,8 @@ function getVideoId() {
     return match ? match[1] : null;
 }
 
-// 获取YouTube频道信息
-function getChannelInfo() {
+// 获取YouTube频道信息（增强版）
+function getChannelInfo(retryCount = 0) {
     try {
         // 尝试多种方式获取频道信息
         let channelName = '';
@@ -89,22 +91,36 @@ function getChannelInfo() {
             }
         }
         
+        // 如果信息不完整且重试次数小于2，则重试
+        if ((!channelId || !channelName) && retryCount < 2) {
+            console.log(`频道信息不完整，${500 * (retryCount + 1)}ms后重试 (${retryCount + 1}/2)`);
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve(getChannelInfo(retryCount + 1));
+                }, 500 * (retryCount + 1));
+            });
+        }
+        
+        const result = {
+            channelId: channelId,
+            channelName: channelName,
+            channelAvatar: channelAvatar,
+            success: !!(channelId && channelName),
+            timestamp: Date.now()
+        };
+        
         console.log('频道信息获取结果:', {
             channelId: channelId,
             channelName: channelName,
             channelAvatar: channelAvatar ? '已获取' : '未获取',
-            success: !!(channelId && channelName)
+            success: result.success,
+            retryCount: retryCount
         });
         
-        return {
-            channelId: channelId,
-            channelName: channelName,
-            channelAvatar: channelAvatar,
-            success: !!(channelId && channelName)
-        };
+        return result;
     } catch (error) {
         console.error('获取频道信息失败:', error);
-        return { success: false };
+        return { success: false, timestamp: Date.now() };
     }
 }
 
@@ -149,6 +165,70 @@ function getVideoTitle() {
     } catch (error) {
         console.error('获取视频标题失败:', error);
         return '';
+    }
+}
+
+// 更新当前页面信息
+async function updateCurrentPageInfo() {
+    try {
+        const videoId = getVideoId();
+        if (!videoId) {
+            console.log('无法获取视频ID');
+            return null;
+        }
+        
+        // 检查缓存
+        if (pageInfoCache.has(videoId)) {
+            const cached = pageInfoCache.get(videoId);
+            // 如果缓存时间在30秒内，直接使用
+            if (Date.now() - cached.timestamp < 30000) {
+                currentPageInfo = cached;
+                return cached;
+            }
+        }
+        
+        console.log('更新页面信息:', videoId);
+        
+        // 获取频道信息（可能需要重试）
+        const channelInfo = await getChannelInfo();
+        
+        // 获取视频标题
+        const videoTitle = await getEnhancedVideoTitle(videoId);
+        
+        if (channelInfo.success && videoTitle) {
+            const pageInfo = {
+                channel: channelInfo,
+                videoTitle: videoTitle,
+                videoId: videoId,
+                timestamp: Date.now(),
+                url: window.location.href
+            };
+            
+            // 更新缓存和当前信息
+            currentPageInfo = pageInfo;
+            pageInfoCache.set(videoId, pageInfo);
+            
+            // 通知background script页面信息已更新
+            chrome.runtime.sendMessage({
+                type: 'pageInfoUpdated',
+                pageInfo: pageInfo
+            }).catch(error => console.log('通知页面信息更新失败:', error));
+            
+            console.log('页面信息更新完成:', {
+                videoId: videoId,
+                channelId: channelInfo.channelId,
+                channelName: channelInfo.channelName,
+                videoTitle: videoTitle
+            });
+            
+            return pageInfo;
+        } else {
+            console.error('页面信息获取不完整:', { channelInfo, videoTitle });
+            return null;
+        }
+    } catch (error) {
+        console.error('更新页面信息失败:', error);
+        return null;
     }
 }
 
@@ -399,10 +479,8 @@ async function autoCheckAndDownloadDanmaku() {
             return;
         }
         
-        // 检查频道是否已关联
-        const mappingResult = await chrome.storage.local.get('channelMappings');
-        const mappings = mappingResult.channelMappings || {};
-        const association = mappings[channelInfo.channelId];
+        // 检查频道是否已关联 - 使用关联工具类
+        const association = await getChannelAssociation(channelInfo.channelId);
         
         if (!association) {
             console.log('频道未关联B站UP主，跳过自动检测');
@@ -491,16 +569,34 @@ new MutationObserver(() => {
     }
 }).observe(document, { subtree: true, childList: true });
 
-// 处理URL变化
+// 处理URL变化（增强版）
 function handleUrlChange() {
     const videoId = getVideoId();
     if (videoId && videoId !== currentVideoId) {
+        const oldVideoId = currentVideoId;
         currentVideoId = videoId;
-        console.log('视频切换:', videoId);
+        
+        console.log('视频切换:', { from: oldVideoId, to: videoId });
+        
+        // 立即清除旧的页面信息
+        currentPageInfo = null;
+        if (oldVideoId) {
+            pageInfoCache.delete(oldVideoId);
+        }
+        
+        // 通知background script页面切换
+        chrome.runtime.sendMessage({
+            type: 'pageChanged',
+            videoId: videoId,
+            oldVideoId: oldVideoId,
+            url: window.location.href
+        }).catch(error => console.log('通知页面切换失败:', error));
         
         // 延迟初始化，等待页面加载
         setTimeout(async () => {
             await initDanmakuEngine();
+            // 初始化完成后更新页面信息
+            await updateCurrentPageInfo();
         }, 1000);
     }
 }
@@ -519,22 +615,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             video.currentTime = request.time;
         }
     } else if (request.type === 'getPageInfo') {
-        // 获取页面信息
-        const channelInfo = getChannelInfo();
-        const videoId = getVideoId();
-        
-        // 异步获取增强标题
+        // 获取页面信息（增强版）
         (async () => {
-            const videoTitle = await getEnhancedVideoTitle(videoId);
-            
-            sendResponse({
-                success: true,
-                data: {
-                    channel: channelInfo,
-                    videoTitle: videoTitle,
-                    videoId: videoId
+            try {
+                const videoId = getVideoId();
+                
+                // 优先使用缓存的页面信息
+                if (currentPageInfo && currentPageInfo.videoId === videoId) {
+                    console.log('使用缓存的页面信息');
+                    sendResponse({
+                        success: true,
+                        data: currentPageInfo
+                    });
+                    return;
                 }
-            });
+                
+                // 重新获取页面信息
+                console.log('重新获取页面信息...');
+                await updateCurrentPageInfo();
+                
+                if (currentPageInfo) {
+                    sendResponse({
+                        success: true,
+                        data: currentPageInfo
+                    });
+                } else {
+                    sendResponse({
+                        success: false,
+                        error: '无法获取页面信息'
+                    });
+                }
+            } catch (error) {
+                console.error('获取页面信息失败:', error);
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            }
         })();
     }
     
