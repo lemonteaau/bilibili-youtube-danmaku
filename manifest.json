@@ -13,12 +13,7 @@
         "https://www.youtube.com/oembed*"
     ],
     "background": {
-        "scripts": [
-            "lib/browser-polyfill.min.js",
-            "lib/protobuf-parser.js",
-            "lib/opencc.min.js",
-            "background/background.js"
-        ]
+        "service_worker": "background/background.js"
     },
     "content_scripts": [
         {
@@ -26,7 +21,7 @@
                 "https://www.youtube.com/*"
             ],
             "js": [
-                "utils/channelAssociation.js",
+                "lib/browser-polyfill.min.js",
                 "content/danmaku-engine.js",
                 "content/youtube.js"
             ],
