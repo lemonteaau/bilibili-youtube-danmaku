@@ -11,16 +11,16 @@
 
 <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
   <div style="text-align: center;">
-    <strong>支付宝</strong><br>
-    <img src="assets/alipay-qr.png" alt="支付宝收款码" width="200" height="200">
+    <strong>支付宝打赏</strong><br>
+    <img src="images/alipay-qr.png" alt="支付宝收款码" width="200" height="200">
   </div>
   <div style="text-align: center;">
-    <strong>微信支付</strong><br>
-    <img src="assets/wechat-qr.png" alt="微信收款码" width="200" height="200">
+    <strong>微信打赏</strong><br>
+    <img src="images/wechat-qr.png" alt="微信收款码" width="200" height="200">
   </div>
 </div>
 
-### 💰 其他支持方式
+### 其他支持方式
 
 - ⭐ **Star 项目** - 给项目点个星星，让更多人发现
 - 🐛 **反馈问题** - 帮助我们发现和修复 Bug
@@ -39,7 +39,6 @@
 
 - 📝 **提交 Issue** - 在 GitHub 上反馈问题
 - 💬 **参与讨论** - 加入社区交流
-- 📧 **邮件联系** - 发送邮件至项目维护者
 
 ---
 
