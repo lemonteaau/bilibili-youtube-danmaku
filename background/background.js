@@ -1,7 +1,15 @@
 // 导入必要的库
-importScripts('lib/browser-polyfill.min.js');
-importScripts('lib/protobuf-parser.js');
-importScripts('lib/opencc.min.js');
+console.log('Background script starting...');
+try {
+    importScripts('lib/browser-polyfill.min.js');
+    console.log('browser-polyfill loaded');
+    importScripts('lib/protobuf-parser.js');
+    console.log('protobuf-parser loaded');
+    importScripts('lib/opencc.min.js');
+    console.log('opencc loaded');
+} catch (error) {
+    console.error('Failed to load scripts:', error);
+}
 
 // B站番剧处理模块 (原bangumi.js内容)
 // B站番剧搜索功能 - 直接返回指定集数的bvid
@@ -1038,7 +1046,9 @@ browser.runtime.onInstalled.addListener(() => {
 });
 
 // 监听来自popup的消息
+console.log('Setting up message listener...');
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('Received message:', request.type);
     if (request.type === 'downloadDanmaku') {
         downloadAllDanmaku(request.bvid)
             .then(async (data) => {
