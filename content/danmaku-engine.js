@@ -16,7 +16,6 @@ class DanmakuEngine {
         };
         this.video = null;
         this.animationId = null;  // 使用 requestAnimationFrame
-        this.lastFrameTime = 0;
         this.isStarted = false;
         
         // seeking/seeked 配对过滤
@@ -158,12 +157,8 @@ class DanmakuEngine {
         // 初始化视频时间跟踪
         this.lastVideoTime = this.video.currentTime;
         
-        this.video.addEventListener('play', () => {
-            this.start();
-        });
-        this.video.addEventListener('pause', () => {
-            this.pause();
-        });
+        this.video.addEventListener('play', () => this.start());
+        this.video.addEventListener('pause', () => this.pause());
         this.video.addEventListener('seeking', () => {
             const currentTime = this.video.currentTime;
             const timeDiff = Math.abs(currentTime - this.lastVideoTime);
@@ -270,7 +265,6 @@ class DanmakuEngine {
         
         this.pause();
         this.isStarted = true;
-        this.lastFrameTime = performance.now();
         this.animate();
     }
     
@@ -349,15 +343,15 @@ class DanmakuEngine {
         elem.style.top = track.top + 'px';
         this.stage.appendChild(elem);
         
-        // 计算动画参数，基于视频时间
+        // 计算动画参数
         const baseDuration = 8000;
-        const startVideoTime = danmaku.time; // 直接使用弹幕的原始时间
         
         const item = {
             elem: elem,
-            startVideoTime: startVideoTime,
+            startTime: performance.now() - elapsed * 1000, // 使用高精度时间，并根据已过时间调整
             baseDuration: baseDuration,
-            width: elem.offsetWidth
+            width: elem.offsetWidth,
+            danmaku: danmaku // 保存原始弹幕数据
         };
         
         track.items.push(item);
@@ -369,15 +363,7 @@ class DanmakuEngine {
     animate() {
         if (!this.settings.enabled || !this.isStarted) return;
         
-        const currentTime = performance.now();
-        const deltaTime = currentTime - this.lastFrameTime;
-        
-        // 限制到120fps
-        if (deltaTime >= 8) {
-            this.update();
-            this.lastFrameTime = currentTime;
-        }
-        
+        this.update();
         this.animationId = requestAnimationFrame(() => this.animate());
     }
     
@@ -436,14 +422,15 @@ class DanmakuEngine {
         
         this.stage.appendChild(elem);
         
-        // 计算动画参数 - 使用视频时间
+        // 计算动画参数
         const baseDuration = 8000; // 基础8秒滚动时间
         
         const item = {
             elem: elem,
-            startVideoTime: this.video.currentTime + this.settings.timeOffset, // 使用视频时间
+            startTime: performance.now(), // 使用高精度时间
             baseDuration: baseDuration,  // 存储基础duration
-            width: elem.offsetWidth
+            width: elem.offsetWidth,
+            danmaku: danmaku // 保存原始弹幕数据
         };
         
         track.items.push(item);
@@ -455,7 +442,6 @@ class DanmakuEngine {
     findAvailableTrack() {
         if (!this.video) return this.tracks[0];
         
-        const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
         const stageWidth = this.stage.offsetWidth;
         const playbackRate = this.video.playbackRate || 1.0; // 获取播放速度
         
@@ -463,16 +449,15 @@ class DanmakuEngine {
             let available = true;
             
             for (const item of track.items) {
-                // 基于视频时间计算进度，添加播放速度补偿
-                const videoElapsed = currentVideoTime - item.startVideoTime;
-                const actualDuration = item.baseDuration / 1000 / this.settings.speed;
-                const itemProgress = (videoElapsed / playbackRate) / actualDuration; // 除以播放速度补偿
+                // 基于 performance.now() 计算进度
+                const elapsed = (performance.now() - item.startTime) * playbackRate;
+                const progress = elapsed / (item.baseDuration / this.settings.speed);
                 
                 // 动态计算总移动距离
                 const totalDistance = stageWidth + item.width;
                 
                 // 计算当前位置
-                const itemX = stageWidth - (itemProgress * totalDistance);
+                const itemX = stageWidth - (progress * totalDistance);
                 
                 // 检查是否会重叠（保留100px间距）
                 if (itemX + item.width > stageWidth - 100) {
@@ -491,9 +476,6 @@ class DanmakuEngine {
     }
     
     updatePositions() {
-        const now = Date.now();
-        const stageWidth = this.stage.offsetWidth;
-        
         this.tracks.forEach(track => {
             track.items.forEach(item => {
                 this.updateItemPosition(item);
@@ -504,14 +486,12 @@ class DanmakuEngine {
     updateItemPosition(item) {
         if (!this.video) return;
         
-        const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
         const stageWidth = this.stage.offsetWidth;
-        
-        // 基于视频时间计算进度，添加播放速度补偿
-        const videoElapsed = currentVideoTime - item.startVideoTime;
-        const actualDuration = item.baseDuration / 1000 / this.settings.speed; // 转换为秒
         const playbackRate = this.video.playbackRate || 1.0; // 获取播放速度
-        const progress = (videoElapsed / playbackRate) / actualDuration; // 除以播放速度补偿
+
+        // 基于 performance.now() 计算进度
+        const elapsed = (performance.now() - item.startTime) * playbackRate;
+        const progress = elapsed / (item.baseDuration / this.settings.speed);
         
         // 动态计算总移动距离
         const totalDistance = stageWidth + item.width;
@@ -526,17 +506,15 @@ class DanmakuEngine {
     cleanup() {
         if (!this.video) return;
         
-        const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
         const stageWidth = this.stage.offsetWidth;
         const playbackRate = this.video.playbackRate || 1.0; // 获取播放速度
         
         this.tracks.forEach(track => {
             track.items = track.items.filter(item => {
-                // 基于视频时间计算进度，添加播放速度补偿
-                const videoElapsed = currentVideoTime - item.startVideoTime;
-                const actualDuration = item.baseDuration / 1000 / this.settings.speed;
-                const progress = (videoElapsed / playbackRate) / actualDuration; // 除以播放速度补偿
-                
+                // 基于 performance.now() 计算进度
+                const elapsed = (performance.now() - item.startTime) * playbackRate;
+                const progress = elapsed / (item.baseDuration / this.settings.speed);
+
                 // 动态计算总移动距离
                 const totalDistance = stageWidth + item.width;
                 
