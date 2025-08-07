@@ -496,6 +496,166 @@ async function getPageInfo(useCache = true) {
     }
 }
 
+// 智能搜索并关联功能
+async function smartSearchAndAssociate() {
+    try {
+        const pageInfo = await getPageInfo();
+        if (!pageInfo || !pageInfo.channel.success) {
+            showStatus('无法获取当前频道信息', 'error');
+            return;
+        }
+        
+        const channelName = pageInfo.channel.channelName;
+        const videoTitle = pageInfo.videoTitle;
+        const videoId = pageInfo.videoId;
+        
+        if (!channelName || !videoTitle) {
+            showStatus('无法获取频道名称或视频标题', 'error');
+            return;
+        }
+        
+        showStatus('正在搜索B站UP主...', 'loading');
+        
+        // 第一步：搜索UP主
+        const userSearchResponse = await chrome.runtime.sendMessage({
+            type: 'searchBilibiliUser',
+            keyword: channelName
+        });
+        
+        if (userSearchResponse.success && userSearchResponse.results.length > 0) {
+            // 找到UP主，显示搜索结果
+            displayUserSearchResults(userSearchResponse.results, pageInfo);
+        } else {
+            // 没找到UP主，进行视频全站搜索
+            showStatus('未找到对应UP主，正在搜索相关视频...', 'loading');
+            
+            const videoSearchResponse = await chrome.runtime.sendMessage({
+                type: 'searchBilibiliVideoGlobal',
+                keyword: videoTitle
+            });
+            
+            if (videoSearchResponse.success && videoSearchResponse.results.length > 0) {
+                displayVideoSearchResults(videoSearchResponse.results, videoId);
+            } else {
+                showStatus('未找到匹配的UP主或视频', 'error');
+            }
+        }
+        
+    } catch (error) {
+        console.error('智能搜索失败:', error);
+        showStatus('智能搜索失败：' + error.message, 'error');
+    }
+}
+
+// 显示UP主搜索结果
+function displayUserSearchResults(users, pageInfo) {
+    const searchResults = document.getElementById('search-results');
+    const searchStatus = document.getElementById('search-status');
+    const searchList = document.getElementById('search-list');
+    
+    searchResults.style.display = 'block';
+    searchStatus.textContent = `找到${users.length}个可能的UP主，请选择：`;
+    
+    searchList.innerHTML = users.map(user => `
+        <div class="search-item user-item" data-mid="${user.mid}" data-space-url="${user.spaceUrl}">
+            <div class="search-item-cover">
+                <img src="${user.face.startsWith("https:") ? user.face : 'https:' + user.face}" alt="${user.uname}" onerror="this.style.display='none'">
+            </div>
+            <div class="search-item-content">
+                <div class="search-item-title">${user.uname}</div>
+                <div class="search-item-info">
+                    ${user.fans > 10000 ? (user.fans / 10000).toFixed(1) + '万' : user.fans} 粉丝 · ${user.videos} 个视频
+                </div>
+                ${user.usign ? `<div class="search-item-info">${user.usign}</div>` : ''}
+            </div>
+        </div>
+    `).join('');
+    
+    // 绑定点击事件
+    searchList.querySelectorAll('.user-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const mid = item.dataset.mid;
+            const spaceUrl = item.dataset.spaceUrl;
+            
+            // 关联UP主
+            const associationData = {
+                bilibiliUID: mid,
+                bilibiliName: item.querySelector('.search-item-title').textContent,
+                bilibiliSpaceUrl: spaceUrl
+            };
+            
+            const success = await saveChannelAssociation(pageInfo.channel.channelId, associationData);
+            if (success) {
+                showStatus('关联成功', 'success');
+                searchResults.style.display = 'none';
+                checkAssociation(pageInfo.channel.channelId);
+                
+                // 关联成功后自动搜索弹幕
+                setTimeout(() => {
+                    autoSearchDanmaku(true);
+                }, 500);
+            } else {
+                showStatus('关联失败', 'error');
+            }
+        });
+    });
+}
+
+// 显示全站视频搜索结果
+function displayVideoSearchResults(videos, youtubeVideoId) {
+    const searchResults = document.getElementById('search-results');
+    const searchStatus = document.getElementById('search-status');
+    const searchList = document.getElementById('search-list');
+    
+    searchResults.style.display = 'block';
+    searchStatus.textContent = `找到${videos.length}个相关视频：`;
+    
+    searchList.innerHTML = videos.map(video => `
+        <div class="search-item video-item" data-bvid="${video.bvid}" data-mid="${video.mid}" data-author="${video.author}">
+            <div class="search-item-cover">
+                <img src="${video.pic}" alt="${video.title}" onerror="this.style.display='none'">
+            </div>
+            <div class="search-item-content">
+                <div class="search-item-title">${video.title}</div>
+                <div class="search-item-info">UP主: ${video.author} · ${video.pubdate}</div>
+            </div>
+        </div>
+    `).join('');
+    
+    // 绑定点击事件
+    searchList.querySelectorAll('.video-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const bvid = item.dataset.bvid;
+            const mid = item.dataset.mid;
+            const author = item.dataset.author;
+            
+            // 显示选项：直接下载弹幕或关联UP主
+            if (confirm(`是否关联UP主 "${author}"？\n\n点击"确定"将关联此UP主，方便后续自动搜索。\n点击"取消"仅下载本视频弹幕。`)) {
+                // 关联UP主
+                (async () => {
+                    const pageInfo = await getPageInfo();
+                    if (pageInfo && pageInfo.channel.success) {
+                        const associationData = {
+                            bilibiliUID: mid,
+                            bilibiliName: author,
+                            bilibiliSpaceUrl: `https://space.bilibili.com/${mid}`
+                        };
+                        
+                        const success = await saveChannelAssociation(pageInfo.channel.channelId, associationData);
+                        if (success) {
+                            showStatus('关联成功，正在下载弹幕...', 'loading');
+                            downloadDanmakuFromBV(bvid, youtubeVideoId);
+                        }
+                    }
+                })();
+            } else {
+                // 仅下载弹幕
+                downloadDanmakuFromBV(bvid, youtubeVideoId);
+            }
+        });
+    });
+}
+
 // 显示频道信息
 function displayChannelInfo(pageInfo) {
     const channelInfoDiv = document.getElementById('channel-info');
@@ -1217,6 +1377,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('associate-btn').addEventListener('click', associateUploader);
     document.getElementById('unassociate-btn').addEventListener('click', unassociateUploader);
     document.getElementById('auto-search-btn').addEventListener('click', autoSearchDanmaku);
+    document.getElementById('smart-search-btn').addEventListener('click', smartSearchAndAssociate);
     
     // 设置变更事件
     document.getElementById('enable-danmaku').addEventListener('change', saveSettings);
