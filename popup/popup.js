@@ -164,9 +164,15 @@ function setDisplayAreaValue(value) {
 
 // 保存设置
 async function saveSettings() {
+    // 优先使用输入框的值，如果没有则使用滑块的值
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    const timeOffset = timeOffsetInput && timeOffsetInput.value !== '' 
+        ? parseFloat(timeOffsetInput.value) || 0
+        : parseFloat(document.getElementById('time-offset').value);
+    
     const settings = {
         enabled: document.getElementById('enable-danmaku').checked,
-        timeOffset: parseFloat(document.getElementById('time-offset').value),
+        timeOffset: timeOffset,
         opacity: parseInt(document.getElementById('opacity').value),
         fontSize: parseInt(document.getElementById('font-size').value),
         speed: parseFloat(document.getElementById('speed').value),
@@ -203,6 +209,13 @@ async function loadSettings() {
     
     document.getElementById('enable-danmaku').checked = settings.enabled;
     document.getElementById('time-offset').value = settings.timeOffset;
+    
+    // 同步手动输入框
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    if (timeOffsetInput) {
+        timeOffsetInput.value = settings.timeOffset;
+    }
+    
     document.getElementById('opacity').value = settings.opacity;
     document.getElementById('font-size').value = settings.fontSize;
     document.getElementById('speed').value = settings.speed || 1.0;
@@ -213,10 +226,29 @@ async function loadSettings() {
     updateSliderValues();
 }
 
+// 更新重置按钮显示状态
+function updateResetButtonVisibility() {
+    const timeOffsetValue = parseFloat(document.getElementById('time-offset').value) || 0;
+    const resetBtn = document.getElementById('time-offset-reset');
+    
+    if (resetBtn) {
+        resetBtn.style.display = timeOffsetValue !== 0 ? 'inline-block' : 'none';
+    }
+}
+
 // 更新滑块显示值
 function updateSliderValues() {
-    document.getElementById('offset-value').textContent = 
-        document.getElementById('time-offset').value + 's';
+    const timeOffsetValue = document.getElementById('time-offset').value;
+    
+    // 更新手动输入框
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    if (timeOffsetInput) {
+        timeOffsetInput.value = timeOffsetValue;
+    }
+    
+    // 更新重置按钮显示状态
+    updateResetButtonVisibility();
+    
     document.getElementById('opacity-value').textContent = 
         document.getElementById('opacity').value + '%';
     document.getElementById('font-size-value').textContent = 
@@ -1385,6 +1417,51 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateSliderValues();
         saveSettings();
     });
+    
+    // 手动输入框事件监听器
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    if (timeOffsetInput) {
+        timeOffsetInput.addEventListener('input', () => {
+            let value = parseFloat(timeOffsetInput.value) || 0;
+            
+            // 同步滑块（滑块有范围限制-60到60）
+            const sliderValue = Math.max(-60, Math.min(60, value));
+            document.getElementById('time-offset').value = sliderValue;
+            
+            // 更新重置按钮显示状态
+            updateResetButtonVisibility();
+            
+            saveSettings();
+        });
+        
+        timeOffsetInput.addEventListener('blur', () => {
+            // 失去焦点时确保数值有效
+            let value = parseFloat(timeOffsetInput.value) || 0;
+            
+            // 同步滑块（滑块有范围限制-60到60）
+            const sliderValue = Math.max(-60, Math.min(60, value));
+            document.getElementById('time-offset').value = sliderValue;
+            
+            // 更新重置按钮显示状态
+            updateResetButtonVisibility();
+            
+            saveSettings();
+        });
+    }
+    
+    // 重置按钮事件监听器
+    const timeOffsetResetBtn = document.getElementById('time-offset-reset');
+    if (timeOffsetResetBtn) {
+        timeOffsetResetBtn.addEventListener('click', () => {
+            document.getElementById('time-offset').value = 0;
+            if (timeOffsetInput) {
+                timeOffsetInput.value = 0;
+            }
+            // 重置后隐藏按钮
+            updateResetButtonVisibility();
+            saveSettings();
+        });
+    }
     document.getElementById('opacity').addEventListener('input', () => {
         updateSliderValues();
         saveSettings();

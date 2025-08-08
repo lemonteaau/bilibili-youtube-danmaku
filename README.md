@@ -22,7 +22,7 @@
 0. 安装本插件
 1. 打开你在 YouTube 上观看的对应视频
 2.1 热门UP主可以自动匹配，无需设置
-   2.2 手动输入可绑定 UP 主B 站空间（输入 https://space.bilibili.com/xxxx 格式的 UP 主空间链接）
+   2.2 手动搜索可绑定 UP 主B 站空间
       2.3 也可以手动输入 B 站原视频链接。
 3. 弹幕将在播放时自动显示在视频上方
 4. 可根据需要调节字体大小、透明度、轨道间距、滚动速度等显示参数
@@ -61,13 +61,17 @@
 7. 安装完成！插件图标会出现在浏览器工具栏中
 
 ## 📝 更新日志
+### 2025-08-08
+1.1.0
+- ✨ 添加智能搜索 up 主 功能，没有绑定 UP 主时可以快速搜索 UP 主（https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/pull/4 ，感谢 @[luoling8192](https://github.com/luoling8192) ）
+- ✨ 时间轴偏移功能优化，可以手动输入时间（有朋友反馈部分视频偏移长达五分钟）
 
-### 2025-08-04
+### 2025-08-06
 1.0.9
 - ✨ 优化了视频标题匹配模式
 - ✨ 提供了公共匹配库
 
-### 2025-08-04
+### 2025-08-05
 1.0.8
 - ✨ 添加多语言标题自动匹配功能（https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/pull/1 ，感谢 @[lemonteaau](https://github.com/lemonteaau) ）
 
