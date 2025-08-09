@@ -166,9 +166,15 @@ function setDisplayAreaValue(value) {
 
 // 保存设置
 async function saveSettings() {
+    // 优先使用输入框的值，如果没有则使用滑块的值
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    const timeOffset = timeOffsetInput && timeOffsetInput.value !== '' 
+        ? parseFloat(timeOffsetInput.value) || 0
+        : parseFloat(document.getElementById('time-offset').value);
+    
     const settings = {
         enabled: document.getElementById('enable-danmaku').checked,
-        timeOffset: parseFloat(document.getElementById('time-offset').value),
+        timeOffset: timeOffset,
         opacity: parseInt(document.getElementById('opacity').value),
         fontSize: parseInt(document.getElementById('font-size').value),
         speed: parseFloat(document.getElementById('speed').value),
@@ -205,6 +211,13 @@ async function loadSettings() {
     
     document.getElementById('enable-danmaku').checked = settings.enabled;
     document.getElementById('time-offset').value = settings.timeOffset;
+    
+    // 同步手动输入框
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    if (timeOffsetInput) {
+        timeOffsetInput.value = settings.timeOffset;
+    }
+    
     document.getElementById('opacity').value = settings.opacity;
     document.getElementById('font-size').value = settings.fontSize;
     document.getElementById('speed').value = settings.speed || 1.0;
@@ -215,10 +228,29 @@ async function loadSettings() {
     updateSliderValues();
 }
 
+// 更新重置按钮显示状态
+function updateResetButtonVisibility() {
+    const timeOffsetValue = parseFloat(document.getElementById('time-offset').value) || 0;
+    const resetBtn = document.getElementById('time-offset-reset');
+    
+    if (resetBtn) {
+        resetBtn.style.display = timeOffsetValue !== 0 ? 'inline-block' : 'none';
+    }
+}
+
 // 更新滑块显示值
 function updateSliderValues() {
-    document.getElementById('offset-value').textContent = 
-        document.getElementById('time-offset').value + 's';
+    const timeOffsetValue = document.getElementById('time-offset').value;
+    
+    // 更新手动输入框
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    if (timeOffsetInput) {
+        timeOffsetInput.value = timeOffsetValue;
+    }
+    
+    // 更新重置按钮显示状态
+    updateResetButtonVisibility();
+    
     document.getElementById('opacity-value').textContent = 
         document.getElementById('opacity').value + '%';
     document.getElementById('font-size-value').textContent = 
@@ -496,6 +528,166 @@ async function getPageInfo(useCache = true) {
         console.error('获取页面信息失败:', error);
         return null;
     }
+}
+
+// 智能搜索并关联功能
+async function smartSearchAndAssociate() {
+    try {
+        const pageInfo = await getPageInfo();
+        if (!pageInfo || !pageInfo.channel.success) {
+            showStatus('无法获取当前频道信息', 'error');
+            return;
+        }
+        
+        const channelName = pageInfo.channel.channelName;
+        const videoTitle = pageInfo.videoTitle;
+        const videoId = pageInfo.videoId;
+        
+        if (!channelName || !videoTitle) {
+            showStatus('无法获取频道名称或视频标题', 'error');
+            return;
+        }
+        
+        showStatus('正在搜索B站UP主...', 'loading');
+        
+        // 第一步：搜索UP主
+        const userSearchResponse = await browserAPI.runtime.sendMessage({
+            type: 'searchBilibiliUser',
+            keyword: channelName
+        });
+        
+        if (userSearchResponse.success && userSearchResponse.results.length > 0) {
+            // 找到UP主，显示搜索结果
+            displayUserSearchResults(userSearchResponse.results, pageInfo);
+        } else {
+            // 没找到UP主，进行视频全站搜索
+            showStatus('未找到对应UP主，正在搜索相关视频...', 'loading');
+            
+            const videoSearchResponse = await browserAPI.runtime.sendMessage({
+                type: 'searchBilibiliVideoGlobal',
+                keyword: videoTitle
+            });
+            
+            if (videoSearchResponse.success && videoSearchResponse.results.length > 0) {
+                displayVideoSearchResults(videoSearchResponse.results, videoId);
+            } else {
+                showStatus('未找到匹配的UP主或视频', 'error');
+            }
+        }
+        
+    } catch (error) {
+        console.error('智能搜索失败:', error);
+        showStatus('智能搜索失败：' + error.message, 'error');
+    }
+}
+
+// 显示UP主搜索结果
+function displayUserSearchResults(users, pageInfo) {
+    const searchResults = document.getElementById('search-results');
+    const searchStatus = document.getElementById('search-status');
+    const searchList = document.getElementById('search-list');
+    
+    searchResults.style.display = 'block';
+    searchStatus.textContent = `找到${users.length}个可能的UP主，请选择：`;
+    
+    searchList.innerHTML = users.map(user => `
+        <div class="search-item user-item" data-mid="${user.mid}" data-space-url="${user.spaceUrl}">
+            <div class="search-item-cover">
+                <img src="${user.face.startsWith("https:") ? user.face : 'https:' + user.face}" alt="${user.uname}" onerror="this.style.display='none'">
+            </div>
+            <div class="search-item-content">
+                <div class="search-item-title">${user.uname}</div>
+                <div class="search-item-info">
+                    ${user.fans > 10000 ? (user.fans / 10000).toFixed(1) + '万' : user.fans} 粉丝 · ${user.videos} 个视频
+                </div>
+                ${user.usign ? `<div class="search-item-info">${user.usign}</div>` : ''}
+            </div>
+        </div>
+    `).join('');
+    
+    // 绑定点击事件
+    searchList.querySelectorAll('.user-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const mid = item.dataset.mid;
+            const spaceUrl = item.dataset.spaceUrl;
+            
+            // 关联UP主
+            const associationData = {
+                bilibiliUID: mid,
+                bilibiliName: item.querySelector('.search-item-title').textContent,
+                bilibiliSpaceUrl: spaceUrl
+            };
+            
+            const success = await saveChannelAssociation(pageInfo.channel.channelId, associationData);
+            if (success) {
+                showStatus('关联成功', 'success');
+                searchResults.style.display = 'none';
+                checkAssociation(pageInfo.channel.channelId);
+                
+                // 关联成功后自动搜索弹幕
+                setTimeout(() => {
+                    autoSearchDanmaku(true);
+                }, 500);
+            } else {
+                showStatus('关联失败', 'error');
+            }
+        });
+    });
+}
+
+// 显示全站视频搜索结果
+function displayVideoSearchResults(videos, youtubeVideoId) {
+    const searchResults = document.getElementById('search-results');
+    const searchStatus = document.getElementById('search-status');
+    const searchList = document.getElementById('search-list');
+    
+    searchResults.style.display = 'block';
+    searchStatus.textContent = `找到${videos.length}个相关视频：`;
+    
+    searchList.innerHTML = videos.map(video => `
+        <div class="search-item video-item" data-bvid="${video.bvid}" data-mid="${video.mid}" data-author="${video.author}">
+            <div class="search-item-cover">
+                <img src="${video.pic}" alt="${video.title}" onerror="this.style.display='none'">
+            </div>
+            <div class="search-item-content">
+                <div class="search-item-title">${video.title}</div>
+                <div class="search-item-info">UP主: ${video.author} · ${video.pubdate}</div>
+            </div>
+        </div>
+    `).join('');
+    
+    // 绑定点击事件
+    searchList.querySelectorAll('.video-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const bvid = item.dataset.bvid;
+            const mid = item.dataset.mid;
+            const author = item.dataset.author;
+            
+            // 显示选项：直接下载弹幕或关联UP主
+            if (confirm(`是否关联UP主 "${author}"？\n\n点击"确定"将关联此UP主，方便后续自动搜索。\n点击"取消"仅下载本视频弹幕。`)) {
+                // 关联UP主
+                (async () => {
+                    const pageInfo = await getPageInfo();
+                    if (pageInfo && pageInfo.channel.success) {
+                        const associationData = {
+                            bilibiliUID: mid,
+                            bilibiliName: author,
+                            bilibiliSpaceUrl: `https://space.bilibili.com/${mid}`
+                        };
+                        
+                        const success = await saveChannelAssociation(pageInfo.channel.channelId, associationData);
+                        if (success) {
+                            showStatus('关联成功，正在下载弹幕...', 'loading');
+                            downloadDanmakuFromBV(bvid, youtubeVideoId);
+                        }
+                    }
+                })();
+            } else {
+                // 仅下载弹幕
+                downloadDanmakuFromBV(bvid, youtubeVideoId);
+            }
+        });
+    });
 }
 
 // 显示频道信息
@@ -1219,6 +1411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('associate-btn').addEventListener('click', associateUploader);
     document.getElementById('unassociate-btn').addEventListener('click', unassociateUploader);
     document.getElementById('auto-search-btn').addEventListener('click', autoSearchDanmaku);
+    document.getElementById('smart-search-btn').addEventListener('click', smartSearchAndAssociate);
     
     // 设置变更事件
     document.getElementById('enable-danmaku').addEventListener('change', saveSettings);
@@ -1226,6 +1419,51 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateSliderValues();
         saveSettings();
     });
+    
+    // 手动输入框事件监听器
+    const timeOffsetInput = document.getElementById('time-offset-input');
+    if (timeOffsetInput) {
+        timeOffsetInput.addEventListener('input', () => {
+            let value = parseFloat(timeOffsetInput.value) || 0;
+            
+            // 同步滑块（滑块有范围限制-60到60）
+            const sliderValue = Math.max(-60, Math.min(60, value));
+            document.getElementById('time-offset').value = sliderValue;
+            
+            // 更新重置按钮显示状态
+            updateResetButtonVisibility();
+            
+            saveSettings();
+        });
+        
+        timeOffsetInput.addEventListener('blur', () => {
+            // 失去焦点时确保数值有效
+            let value = parseFloat(timeOffsetInput.value) || 0;
+            
+            // 同步滑块（滑块有范围限制-60到60）
+            const sliderValue = Math.max(-60, Math.min(60, value));
+            document.getElementById('time-offset').value = sliderValue;
+            
+            // 更新重置按钮显示状态
+            updateResetButtonVisibility();
+            
+            saveSettings();
+        });
+    }
+    
+    // 重置按钮事件监听器
+    const timeOffsetResetBtn = document.getElementById('time-offset-reset');
+    if (timeOffsetResetBtn) {
+        timeOffsetResetBtn.addEventListener('click', () => {
+            document.getElementById('time-offset').value = 0;
+            if (timeOffsetInput) {
+                timeOffsetInput.value = 0;
+            }
+            // 重置后隐藏按钮
+            updateResetButtonVisibility();
+            saveSettings();
+        });
+    }
     document.getElementById('opacity').addEventListener('input', () => {
         updateSliderValues();
         saveSettings();

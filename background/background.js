@@ -603,6 +603,178 @@ async function searchBilibiliVideo(bilibiliUID, videoTitle) {
     }
 }
 
+// 搜索B站UP主
+async function searchBilibiliUser(keyword) {
+    try {
+        // 繁体转简体
+        const simplifiedKeyword = traditionalToSimplifiedChinese(keyword);
+        console.log(`搜索UP主: ${keyword} → ${simplifiedKeyword}`);
+        
+        // 获取WBI Keys
+        const wbiKeys = await getWbiKeys();
+        
+        // 构建API参数
+        const params = {
+            search_type: 'bili_user',
+            keyword: simplifiedKeyword,
+            page: 1,
+            order: '',
+            order_sort: '',
+            user_type: '',
+            web_location: 1430654,
+            wts: Math.round(Date.now() / 1000)
+        };
+        
+        // 生成签名
+        const query = encWbi(params, wbiKeys.img_key, wbiKeys.sub_key);
+        const apiUrl = `https://api.bilibili.com/x/web-interface/wbi/search/type?${query}`;
+        
+        console.log(`搜索UP主API URL: ${apiUrl}`);
+        
+        // 发起API请求
+        const response = await fetch(apiUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://search.bilibili.com/',
+                'Origin': 'https://www.bilibili.com'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API请求失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.code !== 0) {
+            throw new Error(`API返回错误: ${data.message || '未知错误'}`);
+        }
+        
+        // 解析搜索结果
+        const results = [];
+        if (data.data && data.data.result) {
+            for (const user of data.data.result.slice(0, 5)) { // 最多返回5个结果
+                results.push({
+                    mid: user.mid,
+                    uname: user.uname,
+                    usign: user.usign || '',
+                    fans: user.fans || 0,
+                    videos: user.videos || 0,
+                    face: user.upic || '',
+                    spaceUrl: `https://space.bilibili.com/${user.mid}`
+                });
+            }
+        }
+        
+        console.log(`找到 ${results.length} 个UP主`);
+        
+        return {
+            success: true,
+            results: results
+        };
+        
+    } catch (error) {
+        console.error('搜索UP主失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// 全站搜索视频
+async function searchBilibiliVideoGlobal(keyword) {
+    try {
+        // 繁体转简体
+        const simplifiedKeyword = traditionalToSimplifiedChinese(keyword);
+        // 获取标题最佳部分
+        const bestPart = getBestTitlePart(simplifiedKeyword);
+        // 清理标题
+        const cleanedKeyword = cleanVideoTitle(bestPart);
+        console.log(`全站搜索视频: ${keyword} → ${cleanedKeyword}`);
+        
+        // 获取WBI Keys
+        const wbiKeys = await getWbiKeys();
+        
+        // 构建API参数
+        const params = {
+            search_type: 'video',
+            keyword: cleanedKeyword,
+            page: 1,
+            order: '',
+            duration: '',
+            tids: '',
+            web_location: 1430654,
+            wts: Math.round(Date.now() / 1000)
+        };
+        
+        // 生成签名
+        const query = encWbi(params, wbiKeys.img_key, wbiKeys.sub_key);
+        const apiUrl = `https://api.bilibili.com/x/web-interface/wbi/search/type?${query}`;
+        
+        console.log(`全站搜索视频API URL: ${apiUrl}`);
+        
+        // 发起API请求
+        const response = await fetch(apiUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://search.bilibili.com/',
+                'Origin': 'https://www.bilibili.com'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API请求失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.code !== 0) {
+            throw new Error(`API返回错误: ${data.message || '未知错误'}`);
+        }
+        
+        // 解析搜索结果
+        const results = [];
+        if (data.data && data.data.result) {
+            for (const video of data.data.result.slice(0, 10)) { // 最多返回10个结果
+                // 格式化发布时间
+                const formatPubdate = (pubdate) => {
+                    if (typeof pubdate === 'string') {
+                        return pubdate;
+                    }
+                    const date = new Date(pubdate * 1000);
+                    return date.toLocaleDateString('zh-CN');
+                };
+                
+                results.push({
+                    bvid: video.bvid,
+                    title: video.title.replace(/<[^>]*>/g, ''), // 去除HTML标签
+                    author: video.author,
+                    mid: video.mid,
+                    pubdate: formatPubdate(video.pubdate),
+                    pic: `https:${video.pic}`,
+                    play: video.play,
+                    duration: video.duration
+                });
+            }
+        }
+        
+        console.log(`全站搜索找到 ${results.length} 个视频`);
+        
+        return {
+            success: true,
+            results: results
+        };
+        
+    } catch (error) {
+        console.error('全站搜索视频失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
 // 分割标题重新搜索的辅助函数
 async function searchWithSplitTitle(bilibiliUID, title, wbiKeys) {
     try {
@@ -905,6 +1077,34 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.type === 'searchBilibiliVideo') {
         // 新增：B站视频搜索
         searchBilibiliVideo(request.bilibiliUID, request.videoTitle)
+            .then(result => {
+                sendResponse(result);
+            })
+            .catch(error => {
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            });
+        
+        return true; // 保持消息通道开启
+    } else if (request.type === 'searchBilibiliUser') {
+        // 搜索B站UP主
+        searchBilibiliUser(request.keyword)
+            .then(result => {
+                sendResponse(result);
+            })
+            .catch(error => {
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            });
+        
+        return true; // 保持消息通道开启
+    } else if (request.type === 'searchBilibiliVideoGlobal') {
+        // 全站搜索视频
+        searchBilibiliVideoGlobal(request.keyword)
             .then(result => {
                 sendResponse(result);
             })

@@ -298,10 +298,32 @@ h1 {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+.association-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
 .association-header h3 {
-    margin: 0 0 12px 0;
+    margin: 0;
     font-size: 14px;
     color: #333;
+}
+
+.smart-search-btn {
+    padding: 6px 12px;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    white-space: nowrap;
+}
+
+.smart-search-btn:hover {
+    background: #45a049;
 }
 
 .association-input {
@@ -594,12 +616,78 @@ h1 {
 }
 
 .control-group input[type="range"] {
-    width: 70%;
+    width: 85%;
     vertical-align: middle;
 }
 
-.control-group span {
+/* 时间轴偏移控制样式 */
+.time-offset-controls {
+    display: flex;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.time-offset-controls input[type="range"] {
+    width: 75%;
+    vertical-align: middle;
+}
+
+.time-offset-manual {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #f5f5f5;
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
     margin-left: 8px;
+    min-width: 40px;
+}
+
+.time-offset-manual input[type="number"] {
+    width: 40px;
+    padding: 2px 4px;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+    color: #999;
+}
+
+.time-offset-manual .time-unit {
+    font-size: 13px;
+    color: #999;
+    margin: 0;
+}
+
+/* 标签内的重置按钮样式 */
+.control-group label #time-offset-reset {
+    background: #00a1d6;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-left: 8px;
+    min-width: 20px;
+    opacity: 0.8;
+}
+
+.control-group label #time-offset-reset:hover {
+    background: #0087c0;
+    opacity: 1;
+}
+
+.control-group label #time-offset-reset:active {
+    background: #006699;
+    transform: scale(0.95);
+}
+
+.control-group span {
+    margin-left: 6px;
     font-size: 13px;
     color: #999;
 }
@@ -927,4 +1015,44 @@ h1 {
     .controls {
         border-top: 1px solid #444;
     }
+    
+    /* 时间轴偏移控制深色模式 */
+    .time-offset-manual {
+        background: #3a3a3a;
+        border: 1px solid #555;
+    }
+    
+    .time-offset-manual input[type="number"] {
+        color: #888;
+        background: transparent;
+    }
+    
+    .time-offset-manual input[type="number"]::placeholder {
+        color: #888;
+    }
+    
+    .time-offset-manual .time-unit {
+        color: #888;
+    }
+    
+    /* 标签内重置按钮深色模式 */
+    .control-group label #time-offset-reset {
+        background: #00a1d6;
+        color: white;
+    }
+    
+    .control-group label #time-offset-reset:hover {
+        background: #0087c0;
+    }
+}
+
+/* UP主搜索结果样式 */
+.search-item.user-item .search-item-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+.search-item.user-item .search-item-cover img {
+    border-radius: 50%;
 }
