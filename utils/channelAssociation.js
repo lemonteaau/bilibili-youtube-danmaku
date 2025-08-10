@@ -8,7 +8,8 @@
 class ChannelAssociationManager {
     constructor() {
         this.STORAGE_KEY = 'channelMappings';
-        this.REMOTE_DB_URL = 'https://raw.githubusercontent.com/ahaduoduoduo/bilibili-youtube-danmaku/main/channel-associations.json';
+        this.REMOTE_DB_URL =
+            'https://raw.githubusercontent.com/ahaduoduoduo/bilibili-youtube-danmaku/main/channel-associations.json';
     }
 
     /**
@@ -19,14 +20,14 @@ class ChannelAssociationManager {
     async getChannelAssociation(channelId) {
         try {
             if (!channelId) return null;
-            
+
             // 1. 先查本地存储
             const localResult = await this.getLocalAssociation(channelId);
             if (localResult) {
                 console.log('使用本地关联数据:', channelId);
                 return localResult;
             }
-            
+
             // 2. 本地无结果时查远程
             console.log('本地无关联数据，尝试远程获取:', channelId);
             try {
@@ -38,7 +39,7 @@ class ChannelAssociationManager {
             } catch (error) {
                 console.log('远程获取失败，回退到本地模式:', error.message);
             }
-            
+
             return null;
         } catch (error) {
             console.error('获取频道关联信息失败:', error);
@@ -73,7 +74,7 @@ class ChannelAssociationManager {
 
             const result = await browserAPI.storage.local.get(this.STORAGE_KEY);
             const mappings = result[this.STORAGE_KEY] || {};
-            
+
             mappings[channelId] = {
                 bilibiliUID: associationData.bilibiliUID,
                 bilibiliName: associationData.bilibiliName || '',
@@ -100,9 +101,9 @@ class ChannelAssociationManager {
 
             const result = await browserAPI.storage.local.get(this.STORAGE_KEY);
             const mappings = result[this.STORAGE_KEY] || {};
-            
+
             delete mappings[channelId];
-            
+
             await browserAPI.storage.local.set({ [this.STORAGE_KEY]: mappings });
             return true;
         } catch (error) {
@@ -134,9 +135,12 @@ class ChannelAssociationManager {
             const mappings = await this.getAllAssociations();
             const channelIds = Object.keys(mappings);
             const totalCount = channelIds.length;
-            const recentCount = channelIds.filter(id => {
+            const recentCount = channelIds.filter((id) => {
                 const association = mappings[id];
-                return association.lastUpdate && (Date.now() - association.lastUpdate < 30 * 24 * 60 * 60 * 1000);
+                return (
+                    association.lastUpdate &&
+                    Date.now() - association.lastUpdate < 30 * 24 * 60 * 60 * 1000
+                );
             }).length;
 
             return {
@@ -204,11 +208,11 @@ class ChannelAssociationManager {
             if (!remoteData || !remoteData.channels) {
                 return null;
             }
-            
-            const match = remoteData.channels.find(channel => 
-                channel.youtubeChannelId === channelId
+
+            const match = remoteData.channels.find(
+                (channel) => channel.youtubeChannelId === channelId
             );
-            
+
             if (match) {
                 // 转换为本地存储格式
                 return {
@@ -219,7 +223,7 @@ class ChannelAssociationManager {
                     source: 'remote' // 标记数据来源
                 };
             }
-            
+
             return null;
         } catch (error) {
             console.error('远程获取关联信息失败:', error);
@@ -236,23 +240,23 @@ class ChannelAssociationManager {
             const response = await fetch(this.REMOTE_DB_URL, {
                 method: 'GET',
                 headers: {
-                    'Accept': 'application/json'
+                    Accept: 'application/json'
                 },
                 // 不缓存，每次都获取最新数据
                 cache: 'no-cache'
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
+
             const data = await response.json();
-            
+
             // 简单格式验证
             if (!data || !Array.isArray(data.channels)) {
                 throw new Error('远程数据格式无效');
             }
-            
+
             console.log(`远程关联库获取成功，包含 ${data.channels.length} 个频道`);
             return data;
         } catch (error) {
@@ -281,8 +285,10 @@ window.getChannelAssociation = (channelId) => channelAssociation.getChannelAssoc
 window.getLocalAssociation = (channelId) => channelAssociation.getLocalAssociation(channelId);
 window.getRemoteAssociation = (channelId) => channelAssociation.getRemoteAssociation(channelId);
 window.isChannelAssociated = (channelId) => channelAssociation.isChannelAssociated(channelId);
-window.saveChannelAssociation = (channelId, data) => channelAssociation.saveChannelAssociation(channelId, data);
-window.removeChannelAssociation = (channelId) => channelAssociation.removeChannelAssociation(channelId);
+window.saveChannelAssociation = (channelId, data) =>
+    channelAssociation.saveChannelAssociation(channelId, data);
+window.removeChannelAssociation = (channelId) =>
+    channelAssociation.removeChannelAssociation(channelId);
 
 // 如果在扩展环境中，也导出类本身
 if (typeof module !== 'undefined' && module.exports) {

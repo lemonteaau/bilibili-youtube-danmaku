@@ -3,10 +3,7 @@
     "name": "B2Y - YouTube 同步显示 Bilibili 弹幕",
     "version": "1.1.0",
     "description": "自动将Bilibili的弹幕同步显示在YouTube视频上",
-    "permissions": [
-        "storage",
-        "activeTab"
-    ],
+    "permissions": ["storage", "activeTab"],
     "host_permissions": [
         "https://api.bilibili.com/*",
         "https://www.bilibili.com/*",
@@ -31,18 +28,14 @@
     },
     "content_scripts": [
         {
-            "matches": [
-                "https://www.youtube.com/*"
-            ],
+            "matches": ["https://www.youtube.com/*"],
             "js": [
                 "lib/browser-api.js",
                 "utils/channelAssociation.js",
                 "content/danmaku-engine.js",
                 "content/youtube.js"
             ],
-            "css": [
-                "content/danmaku.css"
-            ],
+            "css": ["content/danmaku.css"],
             "run_at": "document_end"
         }
     ],
