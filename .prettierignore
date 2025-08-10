@@ -1,0 +1,24 @@
+# 第三方库
+lib/
+*.min.js
+
+# 配置文件（不需要格式化的JSON）
+channel-associations.json
+social-config.json
+
+# 构建产物和缓存
+node_modules/
+dist/
+build/
+
+# 图片和资源文件
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.md
+
+# License文件
+LICENSE

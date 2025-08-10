@@ -1,100 +1,100 @@
 name: 自动打包并发布 Chrome 插件
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'manifest.json'  # 只有当 manifest.json 发生变化时才触发
-  workflow_dispatch:  # 支持手动触发
+    push:
+        branches: [main]
+        paths:
+            - 'manifest.json' # 只有当 manifest.json 发生变化时才触发
+    workflow_dispatch: # 支持手动触发
 
 permissions:
-  contents: write
-  pull-requests: write
+    contents: write
+    pull-requests: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: 检出代码
-      uses: actions/checkout@v4
-      
-    - name: 读取版本号
-      id: get_version
-      run: |
-        VERSION=$(cat manifest.json | jq -r '.version')
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "当前版本: $VERSION"
-        
-    - name: 检查是否已存在该版本的 Release
-      id: check_release
-      run: |
-        VERSION=${{ steps.get_version.outputs.version }}
-        if gh release view "v$VERSION" >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "版本 v$VERSION 的 Release 已存在，跳过发布"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "版本 v$VERSION 的 Release 不存在，继续发布"
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: 创建插件包
-      if: steps.check_release.outputs.exists == 'false'
-      run: |
-        VERSION=${{ steps.get_version.outputs.version }}
-        PACKAGE_NAME="B2Y-YouTube-Bilibili-Danmaku-v$VERSION.zip"
-        
-        # 创建临时目录用于打包
-        mkdir -p temp_package
-        
-        # 复制需要的文件和目录
-        cp -r assets/ temp_package/
-        cp -r background/ temp_package/
-        cp -r content/ temp_package/
-        cp -r lib/ temp_package/
-        cp -r utils/ temp_package/
-        cp -r popup/ temp_package/
-        cp manifest.json temp_package/
-        
-        # 创建 zip 包
-        cd temp_package
-        zip -r "../$PACKAGE_NAME" .
-        cd ..
-        
-        # 清理临时目录
-        rm -rf temp_package
-        
-        echo "插件包已创建: $PACKAGE_NAME"
-        echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
-        
-    - name: 创建 Release
-      if: steps.check_release.outputs.exists == 'false'
-      run: |
-        VERSION=${{ steps.get_version.outputs.version }}
-        PACKAGE_NAME="${{ env.package_name }}"
-        
-        # 创建 Release
-        gh release create "v$VERSION" \
-          --title "v$VERSION" \
-          --generate-notes \
-          "$PACKAGE_NAME"
-          
-        echo "Release v$VERSION 创建成功"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: 输出结果
-      if: steps.check_release.outputs.exists == 'false'
-      run: |
-        VERSION=${{ steps.get_version.outputs.version }}
-        echo "🎉 Chrome 插件 v$VERSION 已成功打包并发布到 Release!"
-        echo "📦 包含文件: assets/, background/, content/, lib/, popup/, utils/, manifest.json"
-        echo "🚫 已排除文件: social-config.json, README.md, .git/, .github/"
-        
-    - name: 跳过发布提示  
-      if: steps.check_release.outputs.exists == 'true'
-      run: |
-        VERSION=${{ steps.get_version.outputs.version }}
-        echo "ℹ️  版本 v$VERSION 的 Release 已存在，本次跳过发布"
+    release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: 检出代码
+              uses: actions/checkout@v4
+
+            - name: 读取版本号
+              id: get_version
+              run: |
+                  VERSION=$(cat manifest.json | jq -r '.version')
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+                  echo "当前版本: $VERSION"
+
+            - name: 检查是否已存在该版本的 Release
+              id: check_release
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+                  if gh release view "v$VERSION" >/dev/null 2>&1; then
+                    echo "exists=true" >> $GITHUB_OUTPUT
+                    echo "版本 v$VERSION 的 Release 已存在，跳过发布"
+                  else
+                    echo "exists=false" >> $GITHUB_OUTPUT
+                    echo "版本 v$VERSION 的 Release 不存在，继续发布"
+                  fi
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: 创建插件包
+              if: steps.check_release.outputs.exists == 'false'
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+                  PACKAGE_NAME="B2Y-YouTube-Bilibili-Danmaku-v$VERSION.zip"
+
+                  # 创建临时目录用于打包
+                  mkdir -p temp_package
+
+                  # 复制需要的文件和目录
+                  cp -r assets/ temp_package/
+                  cp -r background/ temp_package/
+                  cp -r content/ temp_package/
+                  cp -r lib/ temp_package/
+                  cp -r utils/ temp_package/
+                  cp -r popup/ temp_package/
+                  cp manifest.json temp_package/
+
+                  # 创建 zip 包
+                  cd temp_package
+                  zip -r "../$PACKAGE_NAME" .
+                  cd ..
+
+                  # 清理临时目录
+                  rm -rf temp_package
+
+                  echo "插件包已创建: $PACKAGE_NAME"
+                  echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
+
+            - name: 创建 Release
+              if: steps.check_release.outputs.exists == 'false'
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+                  PACKAGE_NAME="${{ env.package_name }}"
+
+                  # 创建 Release
+                  gh release create "v$VERSION" \
+                    --title "v$VERSION" \
+                    --generate-notes \
+                    "$PACKAGE_NAME"
+                    
+                  echo "Release v$VERSION 创建成功"
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: 输出结果
+              if: steps.check_release.outputs.exists == 'false'
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+                  echo "🎉 Chrome 插件 v$VERSION 已成功打包并发布到 Release!"
+                  echo "📦 包含文件: assets/, background/, content/, lib/, popup/, utils/, manifest.json"
+                  echo "🚫 已排除文件: social-config.json, README.md, .git/, .github/"
+
+            - name: 跳过发布提示
+              if: steps.check_release.outputs.exists == 'true'
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+                  echo "ℹ️  版本 v$VERSION 的 Release 已存在，本次跳过发布"

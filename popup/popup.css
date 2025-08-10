@@ -32,7 +32,7 @@ body {
 }
 
 .youtube-btn {
-    background-color: #FF0000;
+    background-color: #ff0000;
     color: white;
     border: none;
     border-radius: 8px;
@@ -45,12 +45,12 @@ body {
 }
 
 .youtube-btn:hover {
-    background-color: #CC0000;
+    background-color: #cc0000;
     box-shadow: 0 3px 6px rgba(255, 0, 0, 0.3);
 }
 
 .youtube-btn:active {
-    background-color: #AA0000;
+    background-color: #aa0000;
     transform: translateY(1px);
 }
 
@@ -162,7 +162,7 @@ h1 {
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .channel-header {
@@ -220,7 +220,7 @@ h1 {
 }
 
 .associated-info:hover .associated-icon::before {
-    content: "×";
+    content: '×';
     width: 12px;
     height: 12px;
     border: none;
@@ -248,7 +248,7 @@ h1 {
 }
 
 .associated-icon::before {
-    content: "";
+    content: '';
     position: absolute;
     top: 2px;
     left: 0;
@@ -260,7 +260,7 @@ h1 {
 }
 
 .associated-icon::after {
-    content: "";
+    content: '';
     position: absolute;
     top: 2px;
     right: 0;
@@ -295,7 +295,7 @@ h1 {
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .association-header {
@@ -358,7 +358,7 @@ h1 {
     padding: 8px;
     background: #f0f8ff;
     border-radius: 4px;
-    border-left: 3px solid #2196F3;
+    border-left: 3px solid #2196f3;
 }
 
 .association-info p {
@@ -400,7 +400,7 @@ h1 {
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .search-results h3 {
@@ -452,8 +452,12 @@ h1 {
 }
 
 @keyframes spin {
-    0% { transform: translateY(-50%) rotate(0deg); }
-    100% { transform: translateY(-50%) rotate(360deg); }
+    0% {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    100% {
+        transform: translateY(-50%) rotate(360deg);
+    }
 }
 
 .search-item-cover {
@@ -501,7 +505,7 @@ h1 {
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .input-group {
@@ -515,7 +519,7 @@ h1 {
     color: #666;
 }
 
-.input-group input[type="text"] {
+.input-group input[type='text'] {
     width: 100%;
     padding: 8px;
     border: 1px solid #ddd;
@@ -611,11 +615,11 @@ h1 {
     color: #666;
 }
 
-.control-group input[type="checkbox"] {
+.control-group input[type='checkbox'] {
     margin-right: 6px;
 }
 
-.control-group input[type="range"] {
+.control-group input[type='range'] {
     width: 85%;
     vertical-align: middle;
 }
@@ -627,7 +631,7 @@ h1 {
     margin-top: 4px;
 }
 
-.time-offset-controls input[type="range"] {
+.time-offset-controls input[type='range'] {
     width: 75%;
     vertical-align: middle;
 }
@@ -644,7 +648,7 @@ h1 {
     min-width: 40px;
 }
 
-.time-offset-manual input[type="number"] {
+.time-offset-manual input[type='number'] {
     width: 40px;
     padding: 2px 4px;
     border: none;
@@ -811,236 +815,236 @@ h1 {
         background-color: #1a1a1a;
         color: #e0e0e0;
     }
-    
+
     .simple-container {
         background-color: #1a1a1a;
     }
-    
+
     .simple-content h2 {
         color: #e0e0e0;
     }
-    
+
     .container {
         background-color: #1a1a1a;
     }
-    
+
     h1 {
         color: #e0e0e0;
     }
-    
+
     /* 社交图标深色模式 */
     .social-icon {
         background: #3a3a3a;
     }
-    
+
     .social-icon:hover {
         background: #444444;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
-    
+
     .social-icon::before {
         background: rgba(255, 255, 255, 0.95);
         color: #1a1a1a;
         box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
     }
-    
+
     .social-icon::after {
         border-top-color: rgba(255, 255, 255, 0.95);
     }
-    
+
     /* 卡片背景 */
     .channel-info,
     .association-section,
     .search-results,
     .manual-input {
         background: #2d2d2d;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-    
+
     /* 频道信息 */
     .channel-details h3 {
         color: #e0e0e0;
     }
-    
+
     .channel-details p {
         color: #b0b0b0;
     }
-    
+
     .status-text {
         background: #3a3a3a;
         color: #b0b0b0;
     }
-    
+
     .status-text.associated {
         background: #00a1d6;
         color: white;
     }
-    
+
     /* 标题 */
     .association-header h3,
     .search-results h3 {
         color: #e0e0e0;
     }
-    
+
     /* 输入框 */
     .association-input input,
-    .input-group input[type="text"],
+    .input-group input[type='text'],
     .danmaku-list-header input {
         background: #3a3a3a;
         border: 1px solid #555;
         color: #e0e0e0;
     }
-    
+
     .association-input input::placeholder,
-    .input-group input[type="text"]::placeholder,
+    .input-group input[type='text']::placeholder,
     .danmaku-list-header input::placeholder {
         color: #888;
     }
-    
+
     /* 信息框 */
     .association-info {
         background: #2a3a4a;
-        border-left: 3px solid #2196F3;
+        border-left: 3px solid #2196f3;
     }
-    
+
     .association-info p {
         color: #e0e0e0;
     }
-    
+
     /* 搜索状态和项目 */
     #search-status {
         color: #b0b0b0;
     }
-    
+
     .search-item {
         border: 1px solid #444;
         background: #2d2d2d;
     }
-    
+
     .search-item:hover {
         background-color: #3a3a3a;
     }
-    
+
     .search-item-cover {
         background-color: #3a3a3a;
     }
-    
+
     .search-item-title {
         color: #e0e0e0;
     }
-    
+
     .search-item-info {
         color: #888;
     }
-    
+
     /* 标签 */
     .control-group label,
     .input-group label {
         color: #b0b0b0;
     }
-    
+
     .control-group span {
         color: #888;
     }
-    
+
     /* 状态栏 */
     .status-bar.success {
         background-color: #1a4a2e;
         color: #4ade80;
     }
-    
+
     .status-bar.error {
         background-color: #4a1a1a;
         color: #f87171;
     }
-    
+
     .status-bar.loading {
         background-color: #1a3a4a;
         color: #60a5fa;
     }
-    
+
     .status-bar.info {
         background-color: #1a2a4a;
         color: #60a5fa;
     }
-    
+
     /* 弹幕信息 */
     .danmaku-info {
         background-color: #2a2a2a;
         color: #b0b0b0;
     }
-    
+
     /* 弹幕列表 */
     .danmaku-list {
         border: 1px solid #444;
         background-color: #2d2d2d;
     }
-    
+
     .danmaku-item {
         border-bottom: 1px solid #3a3a3a;
     }
-    
+
     .danmaku-item:hover {
         background-color: #3a3a3a;
     }
-    
+
     .danmaku-time {
         color: #60a5fa;
     }
-    
+
     .danmaku-text {
         color: #b0b0b0;
     }
-    
+
     /* 显示区域按钮组 */
     .display-area-btn {
         border: 1px solid #555;
         background: #3a3a3a;
         color: #b0b0b0;
     }
-    
+
     .display-area-btn:hover {
         border-color: #00a1d6;
         color: #60a5fa;
         background: #2a2a2a;
     }
-    
+
     .display-area-btn.active {
         background: #00a1d6;
         border-color: #00a1d6;
         color: white;
     }
-    
+
     /* 分割线 */
     .controls {
         border-top: 1px solid #444;
     }
-    
+
     /* 时间轴偏移控制深色模式 */
     .time-offset-manual {
         background: #3a3a3a;
         border: 1px solid #555;
     }
-    
-    .time-offset-manual input[type="number"] {
+
+    .time-offset-manual input[type='number'] {
         color: #888;
         background: transparent;
     }
-    
-    .time-offset-manual input[type="number"]::placeholder {
+
+    .time-offset-manual input[type='number']::placeholder {
         color: #888;
     }
-    
+
     .time-offset-manual .time-unit {
         color: #888;
     }
-    
+
     /* 标签内重置按钮深色模式 */
     .control-group label #time-offset-reset {
         background: #00a1d6;
         color: white;
     }
-    
+
     .control-group label #time-offset-reset:hover {
         background: #0087c0;
     }

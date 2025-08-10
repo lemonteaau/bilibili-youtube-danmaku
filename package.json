@@ -1,0 +1,26 @@
+{
+    "name": "bilibili-youtube-danmaku",
+    "version": "1.1.0",
+    "description": "自动将Bilibili的弹幕同步显示在YouTube视频上",
+    "main": "background/background.js",
+    "scripts": {
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "format:js": "prettier --write \"**/*.js\"",
+        "format:css": "prettier --write \"**/*.css\"",
+        "format:html": "prettier --write \"**/*.html\"",
+        "format:json": "prettier --write \"**/*.json\""
+    },
+    "devDependencies": {
+        "prettier": "^3.6.2"
+    },
+    "keywords": [
+        "bilibili",
+        "youtube",
+        "danmaku",
+        "browser-extension",
+        "chrome-extension"
+    ],
+    "author": "",
+    "license": "MIT"
+}

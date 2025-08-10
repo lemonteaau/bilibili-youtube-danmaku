@@ -6,19 +6,19 @@
     height: 100%;
     pointer-events: none;
     overflow: hidden;
-    z-index: 59;  /* YouTube的视频控制栏是60 */
+    z-index: 59; /* YouTube的视频控制栏是60 */
 }
 
 .bilibili-danmaku-stage > div {
     position: absolute;
     color: #fff;
-    font-family: SimHei, "Microsoft YaHei", Arial, sans-serif;
+    font-family: SimHei, 'Microsoft YaHei', Arial, sans-serif;
     font-size: var(--danmaku-font-size, 24px);
     line-height: 1.2;
     padding: 2px 0;
     white-space: nowrap;
     font-weight: bold;
-    text-shadow: 
+    text-shadow:
         -1px -1px 0 #000,
         1px -1px 0 #000,
         -1px 1px 0 #000,
