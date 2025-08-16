@@ -115,7 +115,7 @@ jobs:
                   echo "🌊 Edge 版本构建中..."
                   npm run build:edge
 
-                  echo "🍎 Safari 版本构建中..."
+                  echo "🧭 Safari 版本构建中..."
                   npm run build:safari
 
                   echo "✅ 所有浏览器版本构建完成"
@@ -156,7 +156,7 @@ jobs:
                     ["chrome"]="🌐"
                     ["firefox"]="🦊"
                     ["edge"]="🌊"
-                    ["safari"]="🍎"
+                    ["safari"]="🧭"
                   )
 
                   # 复制并重命名 ZIP 文件
@@ -183,7 +183,6 @@ jobs:
                   VERSION=${{ steps.get_version.outputs.version }}
 
                   cat > release_notes.md << EOF
-                  # B2Y - YouTube 同步 Bilibili 弹幕扩展 v$VERSION
 
                   ## 📦 下载安装
 
@@ -210,9 +209,12 @@ jobs:
                   4. 开启"开发人员模式"
                   5. 点击"加载解压缩的扩展"，选择解压后的文件夹
 
-                  ### 🍎 Safari 浏览器
+                  ### 🧭 Safari 浏览器
                   1. 下载 **B2Y-YouTube-Bilibili-Danmaku-v$VERSION-safari.zip**
-                  2. 打开Safari浏览器开发者设置，选择"加载未签名的扩展"，选择下载的ZIP文件
+                  2. 打开 Safari 浏览器，进入"开发" > "开发者设置" > "允许未签名的拓展"
+                  3. 点击"添加临时扩展"
+                  4. 选择下载的 ZIP 文件
+                  5. 在使用前点击插件图标，允许扩展访问网页内容(如果提示)
 
                   ## ⚠️ 注意事项
 
@@ -241,7 +243,7 @@ jobs:
                   if [ -n "$RELEASE_FILES" ]; then
                     # 创建 Release
                     gh release create "$TAG_NAME" \
-                      --title "🎉 B2Y v$VERSION - WXT 多浏览器版" \
+                      --title "B2Y v$VERSION - 多浏览器支持" \
                       --notes-file release_notes.md \
                       --latest \
                       $RELEASE_FILES
@@ -268,15 +270,11 @@ jobs:
                   echo "  🌐 Chrome: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-chrome.zip"
                   echo "  🦊 Firefox: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-firefox.zip"
                   echo "  🌊 Edge: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-edge.zip"
-                  echo "  🍎 Safari: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-safari.zip"
+                  echo "  🧭 Safari: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-safari.zip"
                   echo ""
                   echo "🔗 Release 链接:"
                   echo "  https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
                   echo ""
-                  echo "💡 安装提示:"
-                  echo "  - Chrome/Edge: 解压后加载已解压的扩展程序"
-                  echo "  - Firefox: about:debugging → 临时载入附加组件"
-                  echo "  - 这是个人 Fork 版本，需要手动安装"
 
             - name: ℹ️ 跳过发布提示
               if: steps.check_release.outputs.exists == 'true'
