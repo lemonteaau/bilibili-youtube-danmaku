@@ -60,6 +60,7 @@ class DanmakuEngine {
             .map(d => ({
                 text: d.text,
                 time: d.time + this.settings.timeOffset,
+                mode: d.mode || 'rtl', // 添加弹幕模式支持：rtl, ltr, top, bottom
                 style: {
                     color: d.color || '#ffffff',
                     fontSize: `${this.settings.fontSize}px`,
