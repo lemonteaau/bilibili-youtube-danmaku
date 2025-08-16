@@ -53,20 +53,21 @@ class DanmakuEngine {
         }
 
         const comments = danmakus
-            .filter(d => {
+            .filter((d) => {
                 const weight = d.weight !== undefined && d.weight !== null ? d.weight : 5;
                 return weight >= this.settings.weightThreshold;
             })
-            .map(d => ({
+            .map((d) => ({
                 text: d.text,
                 time: d.time + this.settings.timeOffset,
                 mode: d.mode || 'rtl', // 添加弹幕模式支持：rtl, ltr, top, bottom
                 style: {
                     color: d.color || '#ffffff',
-                    fontSize: `${this.settings.fontSize}px`,
+                    fontSize: `${d.fontSize || this.settings.fontSize}px`, // 优先使用原始字体大小
                     fontFamily: "SimHei, 'Microsoft YaHei', Arial, sans-serif",
                     fontWeight: 'bold',
-                    textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 2px #000'
+                    textShadow:
+                        '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 2px #000'
                 }
             }));
 
@@ -80,7 +81,7 @@ class DanmakuEngine {
     }
 
     updateSettings(settings) {
-        const oldSettings = {...this.settings};
+        const oldSettings = { ...this.settings };
         this.settings = { ...this.settings, ...settings };
 
         if (!this.danmaku) return;
@@ -96,7 +97,7 @@ class DanmakuEngine {
         if (settings.hasOwnProperty('opacity')) {
             this.container.style.opacity = this.settings.opacity / 100;
         }
-        
+
         if (settings.hasOwnProperty('displayAreaPercentage')) {
             this.container.style.height = `${this.settings.displayAreaPercentage}%`;
             this.danmaku.resize();
@@ -107,9 +108,12 @@ class DanmakuEngine {
         }
 
         if (
-            (settings.hasOwnProperty('fontSize') && oldSettings.fontSize !== this.settings.fontSize) ||
-            (settings.hasOwnProperty('weightThreshold') && oldSettings.weightThreshold !== this.settings.weightThreshold) ||
-            (settings.hasOwnProperty('timeOffset') && oldSettings.timeOffset !== this.settings.timeOffset)
+            (settings.hasOwnProperty('fontSize') &&
+                oldSettings.fontSize !== this.settings.fontSize) ||
+            (settings.hasOwnProperty('weightThreshold') &&
+                oldSettings.weightThreshold !== this.settings.weightThreshold) ||
+            (settings.hasOwnProperty('timeOffset') &&
+                oldSettings.timeOffset !== this.settings.timeOffset)
         ) {
             this.loadDanmakus(this.originalDanmakus);
         }
@@ -133,7 +137,6 @@ class DanmakuEngine {
 
 // ES模块导出
 export default DanmakuEngine;
-
 
 // 兼容旧的脚本加载方式
 if (typeof window !== 'undefined') {
