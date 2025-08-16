@@ -1,100 +1,305 @@
-name: 自动打包并发布 Chrome 插件
+name: 🚀 WXT 多浏览器扩展自动打包发布
 
 on:
     push:
         branches: [main]
         paths:
-            - 'manifest.json' # 只有当 manifest.json 发生变化时才触发
+            - 'package.json' # 版本号变化时触发
+            - 'wxt.config.js' # WXT配置变化时触发
+            - 'entrypoints/**' # WXT入口点变化时触发
+            - 'assets/**' # 资源文件变化时触发
+            - 'public/**' # 公共文件变化时触发
+            - 'background/**' # 背景脚本变化时触发
+            - 'content/**' # 内容脚本变化时触发
+            - 'popup/**' # 弹窗页面变化时触发
+            - 'utils/**' # 工具函数变化时触发
+            - 'lib/**' # 第三方库变化时触发
     workflow_dispatch: # 支持手动触发
+        inputs:
+            version:
+                description: '发布版本号 (可选，默认使用 package.json 中的版本)'
+                required: false
+                type: string
 
 permissions:
     contents: write
     pull-requests: write
 
 jobs:
-    release:
+    wxt-multi-browser-release:
         runs-on: ubuntu-latest
 
         steps:
-            - name: 检出代码
+            - name: 📥 检出代码
               uses: actions/checkout@v4
 
-            - name: 读取版本号
+            - name: 🔧 设置 Node.js 环境
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'npm'
+
+            - name: 📦 安装依赖
+              run: |
+                  echo "📦 安装项目依赖..."
+                  npm ci
+
+            - name: 📋 读取版本号
               id: get_version
               run: |
-                  VERSION=$(cat manifest.json | jq -r '.version')
+                  if [ -n "${{ github.event.inputs.version }}" ]; then
+                    VERSION="${{ github.event.inputs.version }}"
+                    echo "🎯 使用手动输入的版本号: $VERSION"
+                  else
+                    VERSION=$(node -p "require('./package.json').version")
+                    echo "📄 从 package.json 读取版本号: $VERSION"
+                  fi
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "当前版本: $VERSION"
 
-            - name: 检查是否已存在该版本的 Release
+            - name: ✅ 验证 WXT 配置
+              run: |
+                  echo "🔍 验证 WXT 配置和项目结构..."
+
+                  # 检查 WXT 配置文件
+                  if [ ! -f "wxt.config.js" ]; then
+                    echo "❌ 缺少 WXT 配置文件: wxt.config.js"
+                    exit 1
+                  fi
+
+                  # 检查 package.json 中的 WXT 脚本
+                  if ! npm run --silent | grep -q "build:"; then
+                    echo "❌ package.json 缺少构建脚本"
+                    exit 1
+                  fi
+
+                  # 检查关键目录
+                  REQUIRED_DIRS=("background" "content" "popup" "assets")
+                  for dir in "${REQUIRED_DIRS[@]}"; do
+                    if [ ! -d "$dir" ]; then
+                      echo "⚠️  缺少目录: $dir"
+                    fi
+                  done
+
+                  echo "✅ WXT 项目结构验证通过"
+
+            - name: 🔍 检查 Release 是否已存在
               id: check_release
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  if gh release view "v$VERSION" >/dev/null 2>&1; then
+                  TAG_NAME="v$VERSION"
+
+                  if gh release view "$TAG_NAME" >/dev/null 2>&1; then
                     echo "exists=true" >> $GITHUB_OUTPUT
-                    echo "版本 v$VERSION 的 Release 已存在，跳过发布"
+                    echo "📋 版本 $TAG_NAME 的 Release 已存在，跳过发布"
                   else
                     echo "exists=false" >> $GITHUB_OUTPUT
-                    echo "版本 v$VERSION 的 Release 不存在，继续发布"
+                    echo "🆕 版本 $TAG_NAME 的 Release 不存在，继续发布"
                   fi
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: 创建插件包
+            - name: 🏗️ 构建多浏览器扩展
               if: steps.check_release.outputs.exists == 'false'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  PACKAGE_NAME="B2Y-YouTube-Bilibili-Danmaku-v$VERSION.zip"
+                  echo "🏗️ 开始构建 v$VERSION 多浏览器扩展..."
 
-                  # 创建临时目录用于打包
-                  mkdir -p temp_package
+                  # 构建所有浏览器版本
+                  echo "📦 Chrome 版本构建中..."
+                  npm run build:chrome
 
-                  # 复制需要的文件和目录
-                  cp -r assets/ temp_package/
-                  cp -r background/ temp_package/
-                  cp -r content/ temp_package/
-                  cp -r lib/ temp_package/
-                  cp -r utils/ temp_package/
-                  cp -r popup/ temp_package/
-                  cp manifest.json temp_package/
+                  echo "🦊 Firefox 版本构建中..."
+                  npm run build:firefox
 
-                  # 创建 zip 包
-                  cd temp_package
-                  zip -r "../$PACKAGE_NAME" .
-                  cd ..
+                  echo "🌊 Edge 版本构建中..."
+                  npm run build:edge
 
-                  # 清理临时目录
-                  rm -rf temp_package
+                  echo "🍎 Safari 版本构建中..."
+                  npm run build:safari
 
-                  echo "插件包已创建: $PACKAGE_NAME"
-                  echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
+                  echo "✅ 所有浏览器版本构建完成"
 
-            - name: 创建 Release
+            - name: 📦 创建扩展包
               if: steps.check_release.outputs.exists == 'false'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  PACKAGE_NAME="${{ env.package_name }}"
+                  echo "📦 开始打包 v$VERSION 扩展..."
 
-                  # 创建 Release
-                  gh release create "v$VERSION" \
-                    --title "v$VERSION" \
-                    --generate-notes \
-                    "$PACKAGE_NAME"
+                  # 创建 ZIP 包
+                  echo "🗜️ Chrome ZIP 打包中..."
+                  npm run zip:chrome
+
+                  echo "🗜️ Firefox ZIP 打包中..."
+                  npm run zip:firefox
+
+                  echo "🗜️ Edge ZIP 打包中..."
+                  npm run zip:edge
+
+                  echo "🗜️ Safari ZIP 打包中..."
+                  npm run zip:safari
+
+                  echo "📋 生成的文件列表:"
+                  ls -la .output/
+                  find .output -name "*.zip" -type f -exec ls -lh {} \;
+
+            - name: 📁 准备发布资源
+              if: steps.check_release.outputs.exists == 'false'
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+                  echo "📁 准备 Release 资源文件..."
+
+                  mkdir -p release-assets
+
+                  # 浏览器列表和对应的emoji
+                  declare -A BROWSERS=(
+                    ["chrome"]="🌐"
+                    ["firefox"]="🦊"
+                    ["edge"]="🌊"
+                    ["safari"]="🍎"
+                  )
+
+                  # 复制并重命名 ZIP 文件
+                  for browser in "${!BROWSERS[@]}"; do
+                    SOURCE_FILE=".output/bilibili-youtube-danmaku-$VERSION-$browser.zip"
+                    TARGET_FILE="release-assets/B2Y-YouTube-Bilibili-Danmaku-v$VERSION-$browser.zip"
                     
-                  echo "Release v$VERSION 创建成功"
+                    if [ -f "$SOURCE_FILE" ]; then
+                      cp "$SOURCE_FILE" "$TARGET_FILE"
+                      FILE_SIZE=$(du -h "$TARGET_FILE" | cut -f1)
+                      echo "${BROWSERS[$browser]} $browser: $TARGET_FILE ($FILE_SIZE)"
+                    else
+                      echo "⚠️  $browser 版本文件不存在: $SOURCE_FILE"
+                    fi
+                  done
+
+                  echo ""
+                  echo "📋 准备完成的发布资源:"
+                  ls -lah release-assets/
+
+            - name: 📝 生成 Release 说明
+              if: steps.check_release.outputs.exists == 'false'
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+
+                  cat > release_notes.md << EOF
+                  # 🎉 B2Y - YouTube 同步 Bilibili 弹幕扩展 v$VERSION
+
+                  > 基于 WXT 框架构建的多浏览器版本，支持 Chrome、Firefox、Edge、Safari
+
+                  ## 📦 下载安装
+
+                  请根据你的浏览器下载对应的扩展包：
+
+                  ### 🌐 Chrome 浏览器
+                  1. 下载 **B2Y-YouTube-Bilibili-Danmaku-v$VERSION-chrome.zip**
+                  2. 解压到本地文件夹
+                  3. 打开 \`chrome://extensions/\`
+                  4. 开启"开发者模式"
+                  5. 点击"加载已解压的扩展程序"，选择解压后的文件夹
+
+                  ### 🦊 Firefox 浏览器
+                  1. 下载 **B2Y-YouTube-Bilibili-Danmaku-v$VERSION-firefox.zip**
+                  2. 打开 \`about:debugging\`
+                  3. 点击"此 Firefox"
+                  4. 点击"临时载入附加组件"
+                  5. 选择下载的 ZIP 文件
+
+                  ### 🌊 Edge 浏览器
+                  1. 下载 **B2Y-YouTube-Bilibili-Danmaku-v$VERSION-edge.zip**
+                  2. 解压到本地文件夹
+                  3. 打开 \`edge://extensions/\`
+                  4. 开启"开发人员模式"
+                  5. 点击"加载解压缩的扩展"，选择解压后的文件夹
+
+                  ### 🍎 Safari 浏览器
+                  1. 下载 **B2Y-YouTube-Bilibili-Danmaku-v$VERSION-safari.zip**
+                  2. 按照 Safari 扩展安装流程进行安装
+
+                  ## ✨ 功能特性
+
+                  - 🎯 自动弹幕同步：在 YouTube 视频上显示 Bilibili 对应视频的弹幕
+                  - 🌐 多浏览器支持：支持主流浏览器的最新版本
+                  - ⚡ 现代化架构：基于 WXT 框架，性能优化
+                  - 🔧 兼容性优化：统一的 API 兼容层
+
+                  ## ⚠️ 注意事项
+
+                  - 这是个人维护的 Fork 版本，不会上架浏览器商店
+                  - Firefox 临时安装的扩展在浏览器重启后会被移除
+                  - 需要手动安装和更新
+
+                  ## 🔗 项目地址
+
+                  - GitHub: https://github.com/${{ github.repository }}
+                  - 问题反馈: https://github.com/${{ github.repository }}/issues
+
+                  ---
+
+                  **技术栈**: WXT + Vite + GitHub Actions  
+                  **构建时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')
+                  EOF
+
+            - name: 🚀 创建 GitHub Release
+              if: steps.check_release.outputs.exists == 'false'
+              run: |
+                  VERSION=${{ steps.get_version.outputs.version }}
+                  TAG_NAME="v$VERSION"
+
+                  echo "🚀 创建 Release: $TAG_NAME"
+
+                  # 收集所有 ZIP 文件
+                  RELEASE_FILES=""
+                  for file in release-assets/*.zip; do
+                    if [ -f "$file" ]; then
+                      RELEASE_FILES="$RELEASE_FILES $file"
+                    fi
+                  done
+
+                  if [ -n "$RELEASE_FILES" ]; then
+                    # 创建 Release
+                    gh release create "$TAG_NAME" \
+                      --title "🎉 B2Y v$VERSION - WXT 多浏览器版" \
+                      --notes-file release_notes.md \
+                      --latest \
+                      $RELEASE_FILES
+                    
+                    echo "✅ Release $TAG_NAME 创建成功！"
+                  else
+                    echo "❌ 没有找到可发布的 ZIP 文件"
+                    exit 1
+                  fi
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: 输出结果
+            - name: 🎉 输出成功信息
               if: steps.check_release.outputs.exists == 'false'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  echo "🎉 Chrome 插件 v$VERSION 已成功打包并发布到 Release!"
-                  echo "📦 包含文件: assets/, background/, content/, lib/, popup/, utils/, manifest.json"
-                  echo "🚫 已排除文件: social-config.json, README.md, .git/, .github/"
+                  TAG_NAME="v$VERSION"
 
-            - name: 跳过发布提示
+                  echo ""
+                  echo "🎉 B2Y YouTube Bilibili 弹幕扩展 v$VERSION 发布成功！"
+                  echo ""
+                  echo "📋 发布信息:"
+                  echo "  🏷️  标签: $TAG_NAME"
+                  echo "  🌐 Chrome: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-chrome.zip"
+                  echo "  🦊 Firefox: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-firefox.zip"
+                  echo "  🌊 Edge: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-edge.zip"
+                  echo "  🍎 Safari: B2Y-YouTube-Bilibili-Danmaku-v$VERSION-safari.zip"
+                  echo ""
+                  echo "🔗 Release 链接:"
+                  echo "  https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
+                  echo ""
+                  echo "💡 安装提示:"
+                  echo "  - Chrome/Edge: 解压后加载已解压的扩展程序"
+                  echo "  - Firefox: about:debugging → 临时载入附加组件"
+                  echo "  - 这是个人 Fork 版本，需要手动安装"
+
+            - name: ℹ️ 跳过发布提示
               if: steps.check_release.outputs.exists == 'true'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  echo "ℹ️  版本 v$VERSION 的 Release 已存在，本次跳过发布"
+                  TAG_NAME="v$VERSION"
+                  echo "ℹ️  版本 $TAG_NAME 的 Release 已存在，本次跳过发布"
+                  echo "🔗 现有 Release: https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
