@@ -68,7 +68,7 @@ jobs:
                   fi
 
                   # 检查 package.json 中的 WXT 脚本
-                  if ! npm run --silent | grep -q "build:"; then
+                  if ! grep -q '"build:' package.json; then
                     echo "❌ package.json 缺少构建脚本"
                     exit 1
                   fi
