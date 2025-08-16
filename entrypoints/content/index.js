@@ -341,17 +341,24 @@ export default defineContentScript({
 
         // 初始化弹幕引擎
         async function initDanmakuEngine() {
-            const container = findVideoContainer();
-            if (!container) {
+            const videoContainer = findVideoContainer();
+            if (!videoContainer) {
                 console.log('未找到视频容器');
                 return;
             }
 
+            let danmakuContainer = videoContainer.querySelector('.bilibili-danmaku-stage');
+            if (!danmakuContainer) {
+                danmakuContainer = document.createElement('div');
+                danmakuContainer.className = 'bilibili-danmaku-stage';
+                videoContainer.appendChild(danmakuContainer);
+            }
+
             console.log('找到视频容器:', {
-                id: container.id,
-                className: container.className,
-                width: container.offsetWidth,
-                height: container.offsetHeight
+                id: videoContainer.id,
+                className: videoContainer.className,
+                width: videoContainer.offsetWidth,
+                height: videoContainer.offsetHeight
             });
 
             // 销毁旧的引擎
@@ -363,7 +370,7 @@ export default defineContentScript({
             stopAdStatusMonitoring();
 
             // 创建新引擎
-            danmakuEngine = new DanmakuEngine(container);
+            danmakuEngine = new DanmakuEngine(danmakuContainer);
 
             // 加载设置
             await loadSettings();

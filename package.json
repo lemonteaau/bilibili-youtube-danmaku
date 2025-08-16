@@ -30,5 +30,8 @@
         "chrome-extension"
     ],
     "author": "",
-    "license": "MIT"
+    "license": "MIT",
+    "dependencies": {
+        "danmaku": "^2.0.9"
+    }
 }
