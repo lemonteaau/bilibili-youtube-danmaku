@@ -183,9 +183,7 @@ jobs:
                   VERSION=${{ steps.get_version.outputs.version }}
 
                   cat > release_notes.md << EOF
-                  # 🎉 B2Y - YouTube 同步 Bilibili 弹幕扩展 v$VERSION
-
-                  > 基于 WXT 框架构建的多浏览器版本，支持 Chrome、Firefox、Edge、Safari
+                  # B2Y - YouTube 同步 Bilibili 弹幕扩展 v$VERSION
 
                   ## 📦 下载安装
 
@@ -216,28 +214,12 @@ jobs:
                   1. 下载 **B2Y-YouTube-Bilibili-Danmaku-v$VERSION-safari.zip**
                   2. 按照 Safari 扩展安装流程进行安装
 
-                  ## ✨ 功能特性
-
-                  - 🎯 自动弹幕同步：在 YouTube 视频上显示 Bilibili 对应视频的弹幕
-                  - 🌐 多浏览器支持：支持主流浏览器的最新版本
-                  - ⚡ 现代化架构：基于 WXT 框架，性能优化
-                  - 🔧 兼容性优化：统一的 API 兼容层
-
                   ## ⚠️ 注意事项
 
                   - 这是个人维护的 Fork 版本，不会上架浏览器商店
                   - Firefox 临时安装的扩展在浏览器重启后会被移除
                   - 需要手动安装和更新
 
-                  ## 🔗 项目地址
-
-                  - GitHub: https://github.com/${{ github.repository }}
-                  - 问题反馈: https://github.com/${{ github.repository }}/issues
-
-                  ---
-
-                  **技术栈**: WXT + Vite + GitHub Actions  
-                  **构建时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')
                   EOF
 
             - name: 🚀 创建 GitHub Release
