@@ -123,13 +123,10 @@ bilibili-youtube-danmaku/
 ## 📝 更新日志
 
 ### 2025-08-17
-1.2.0 - WXT 框架迁移
-- 🎯 **重大升级**：迁移到现代化 WXT 框架
-- 🌐 **多浏览器支持**：同时支持 Chrome 和 Firefox
-- ⚡ **开发体验提升**：热重载、ES6 模块化、代码分割
-- 🛠 **构建优化**：统一配置管理，自动生成 manifest
-- 🔄 **API 升级**：使用 `browser.*` API 提供跨浏览器兼容
-- 📁 **结构重组**：现代化项目结构，更好的可维护性
+1.1.1 
+- ✨WXT 框架迁移，感谢 @[lemonteaau](https://github.com/lemonteaau) ）
+- ✨修复了弹幕 Z-index 问题，感谢 @[lemonteaau](https://github.com/lemonteaau) ）
+- ✨增加了 10% 的弹幕覆盖范围
 
 ### 2025-08-08
 1.1.0
