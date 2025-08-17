@@ -1,10 +1,10 @@
-name: 自动打包并发布 Chrome 插件
+name: 自动打包并发布多浏览器扩展
 
 on:
     push:
         branches: [main]
         paths:
-            - 'manifest.json' # 只有当 manifest.json 发生变化时才触发
+            - 'package.json' # 只有当 package.json 版本发生变化时才触发
     workflow_dispatch: # 支持手动触发
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
             - name: 读取版本号
               id: get_version
               run: |
-                  VERSION=$(cat manifest.json | jq -r '.version')
+                  VERSION=$(cat package.json | jq -r '.version')
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "当前版本: $VERSION"
 
@@ -40,48 +40,57 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: 创建插件包
+            - name: 安装依赖
+              if: steps.check_release.outputs.exists == 'false'  
+              run: npm ci
+
+            - name: 创建多浏览器扩展包
               if: steps.check_release.outputs.exists == 'false'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  PACKAGE_NAME="B2Y-YouTube-Bilibili-Danmaku-v$VERSION.zip"
+                  CHROME_PACKAGE="B2Y-Chrome-v$VERSION.zip"
+                  FIREFOX_PACKAGE="B2Y-Firefox-v$VERSION.zip"
 
-                  # 创建临时目录用于打包
-                  mkdir -p temp_package
+                  # 构建 Chrome 版本
+                  echo "🔨 构建 Chrome 扩展..."
+                  npm run build
+                  
+                  # 打包 Chrome 版本
+                  cd .output/chrome-mv3
+                  zip -r "../../$CHROME_PACKAGE" .
+                  cd ../..
 
-                  # 复制需要的文件和目录
-                  cp -r assets/ temp_package/
-                  cp -r background/ temp_package/
-                  cp -r content/ temp_package/
-                  cp -r lib/ temp_package/
-                  cp -r utils/ temp_package/
-                  cp -r popup/ temp_package/
-                  cp manifest.json temp_package/
+                  # 构建 Firefox 版本  
+                  echo "🔨 构建 Firefox 扩展..."
+                  npm run build:firefox
+                  
+                  # 打包 Firefox 版本
+                  cd .output/firefox-mv2
+                  zip -r "../../$FIREFOX_PACKAGE" .
+                  cd ../..
 
-                  # 创建 zip 包
-                  cd temp_package
-                  zip -r "../$PACKAGE_NAME" .
-                  cd ..
-
-                  # 清理临时目录
-                  rm -rf temp_package
-
-                  echo "插件包已创建: $PACKAGE_NAME"
-                  echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
+                  echo "✅ 扩展包创建完成:"
+                  echo "📦 Chrome: $CHROME_PACKAGE"
+                  echo "📦 Firefox: $FIREFOX_PACKAGE"
+                  
+                  echo "chrome_package=$CHROME_PACKAGE" >> $GITHUB_ENV
+                  echo "firefox_package=$FIREFOX_PACKAGE" >> $GITHUB_ENV
 
             - name: 创建 Release
               if: steps.check_release.outputs.exists == 'false'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  PACKAGE_NAME="${{ env.package_name }}"
+                  CHROME_PACKAGE="${{ env.chrome_package }}"
+                  FIREFOX_PACKAGE="${{ env.firefox_package }}"
 
-                  # 创建 Release
+                  # 创建 Release 并上传多浏览器包
                   gh release create "v$VERSION" \
-                    --title "v$VERSION" \
+                    --title "v$VERSION - WXT 多浏览器支持" \
                     --generate-notes \
-                    "$PACKAGE_NAME"
+                    "$CHROME_PACKAGE" \
+                    "$FIREFOX_PACKAGE"
                     
-                  echo "Release v$VERSION 创建成功"
+                  echo "✅ Release v$VERSION 创建成功，包含 Chrome 和 Firefox 版本"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -89,9 +98,12 @@ jobs:
               if: steps.check_release.outputs.exists == 'false'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  echo "🎉 Chrome 插件 v$VERSION 已成功打包并发布到 Release!"
-                  echo "📦 包含文件: assets/, background/, content/, lib/, popup/, utils/, manifest.json"
-                  echo "🚫 已排除文件: social-config.json, README.md, .git/, .github/"
+                  echo "🎉 多浏览器扩展 v$VERSION 已成功构建并发布到 Release!"
+                  echo "🌐 支持浏览器:"
+                  echo "  ✅ Chrome (Manifest V3)"
+                  echo "  ✅ Firefox (Manifest V2)" 
+                  echo "🛠 构建技术: WXT Framework"
+                  echo "📁 构建产物: .output/chrome-mv3/, .output/firefox-mv2/"
 
             - name: 跳过发布提示
               if: steps.check_release.outputs.exists == 'true'
