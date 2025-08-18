@@ -77,6 +77,7 @@
 - 点击"临时载入附加组件"
 - 选择下载的 ZIP 文件
 - ❗️ 注意，当前 Friefox 下仍存在性能问题，目前仍有卡顿问题
+- ❗️ 注意，当前 Friefox 重启需要重新加载插件
 
 #### 🌊 Edge 浏览器
 - 下载 `B2Y-YouTube-Bilibili-Danmaku-vX.X.X-edge.zip`
