@@ -162,16 +162,26 @@ class DanmakuEngine {
     bindVideoEvents() {
         // 初始化视频时间跟踪
         this.lastVideoTime = this.video.currentTime;
+        this.pauseTime = 0;
 
         this.video.addEventListener('play', () => {
             this.start();
+            // console.log('视频播放');
         });
         this.video.addEventListener('pause', () => {
             this.pause();
+            this.pauseTime = this.video.currentTime;
+            console.log('视频暂停');
         });
         this.video.addEventListener('seeking', () => {
             const currentTime = this.video.currentTime;
-            const timeDiff = Math.abs(currentTime - this.lastVideoTime);
+            let timeDiff = 0;
+            if(this.pauseTime > 0) {
+                timeDiff = Math.abs(currentTime - this.pauseTime);
+            }else{
+                timeDiff = Math.abs(currentTime - this.lastVideoTime);
+            }
+            console.log('时间差', timeDiff);
 
             if (timeDiff > this.seekingThreshold) {
                 // 真正的拖拽
@@ -342,14 +352,14 @@ class DanmakuEngine {
         
         const emitLoop = (currentTime) => {
             if (this.isStarted && this.video && !this.video.paused) {
-                // 控制发射频率到每秒一次
-                if (currentTime - this.lastEmitTime >= 1000) {
+                // 控制发射频率到每0.5秒一次
+                if (currentTime - this.lastEmitTime >= 500) {
                     this.checkAndEmitDanmakus();
                     this.lastEmitTime = currentTime;
                 }
                 
-                // 控制清理频率到每10秒一次
-                if (currentTime - this.lastCleanupTime >= 10000) {
+                // 控制清理频率到每0.5秒一次
+                if (currentTime - this.lastCleanupTime >= 500) {
                     this.cleanup();
                     this.lastCleanupTime = currentTime;
                 }
