@@ -138,31 +138,81 @@
                 </div>
 
                 <div class="control-group">
-                    <label for="opacity">透明度：</label>
+                    <label for="opacity"
+                        >透明度：
+                        <button
+                            type="button"
+                            id="opacity-reset"
+                            title="恢复默认值"
+                            style="display: none"
+                        >
+                            ⟲
+                        </button>
+                    </label>
                     <input type="range" id="opacity" min="0" max="100" value="100" step="5" />
                     <span id="opacity-value">100%</span>
                 </div>
 
                 <div class="control-group">
-                    <label for="font-size">字体大小：</label>
+                    <label for="font-size"
+                        >字体大小：
+                        <button
+                            type="button"
+                            id="font-size-reset"
+                            title="恢复默认值"
+                            style="display: none"
+                        >
+                            ⟲
+                        </button>
+                    </label>
                     <input type="range" id="font-size" min="16" max="48" value="24" step="2" />
                     <span id="font-size-value">24px</span>
                 </div>
 
                 <div class="control-group">
-                    <label for="speed">滚动速度：</label>
+                    <label for="speed"
+                        >滚动速度：
+                        <button
+                            type="button"
+                            id="speed-reset"
+                            title="恢复默认值"
+                            style="display: none"
+                        >
+                            ⟲
+                        </button>
+                    </label>
                     <input type="range" id="speed" min="0.5" max="2" value="1" step="0.1" />
                     <span id="speed-value">1.0x</span>
                 </div>
 
                 <div class="control-group">
-                    <label for="track-spacing">弹幕垂直间距：</label>
+                    <label for="track-spacing"
+                        >弹幕垂直间距：
+                        <button
+                            type="button"
+                            id="track-spacing-reset"
+                            title="恢复默认值"
+                            style="display: none"
+                        >
+                            ⟲
+                        </button>
+                    </label>
                     <input type="range" id="track-spacing" min="0" max="20" value="8" step="1" />
                     <span id="track-spacing-value">8px</span>
                 </div>
 
                 <div class="control-group">
-                    <label>显示区域：</label>
+                    <label
+                        >显示区域：
+                        <button
+                            type="button"
+                            id="display-area-reset"
+                            title="恢复默认值"
+                            style="display: none"
+                        >
+                            ⟲
+                        </button>
+                    </label>
                     <div class="display-area-buttons">
                         <button type="button" class="display-area-btn" data-value="10">10%</button>
                         <button type="button" class="display-area-btn" data-value="25">25%</button>
@@ -175,7 +225,17 @@
                 </div>
 
                 <div class="control-group">
-                    <label for="weight-threshold">智能过滤：</label>
+                    <label for="weight-threshold"
+                        >智能过滤：
+                        <button
+                            type="button"
+                            id="weight-threshold-reset"
+                            title="恢复默认值"
+                            style="display: none"
+                        >
+                            ⟲
+                        </button>
+                    </label>
                     <input type="range" id="weight-threshold" min="0" max="10" value="5" step="1" />
                     <span id="weight-threshold-value">5（过滤等级）</span>
                 </div>

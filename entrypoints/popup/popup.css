@@ -666,7 +666,7 @@ h1 {
 }
 
 /* 标签内的重置按钮样式 */
-.control-group label #time-offset-reset {
+.control-group label button[id$='-reset'] {
     background: #00a1d6;
     color: white;
     border: none;
@@ -680,12 +680,12 @@ h1 {
     opacity: 0.8;
 }
 
-.control-group label #time-offset-reset:hover {
+.control-group label button[id$='-reset']:hover {
     background: #0087c0;
     opacity: 1;
 }
 
-.control-group label #time-offset-reset:active {
+.control-group label button[id$='-reset']:active {
     background: #006699;
     transform: scale(0.95);
 }

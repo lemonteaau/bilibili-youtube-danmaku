@@ -228,13 +228,31 @@ async function loadSettings() {
 }
 
 // 更新重置按钮显示状态
-function updateResetButtonVisibility() {
-    const timeOffsetValue = parseFloat(document.getElementById('time-offset').value) || 0;
-    const resetBtn = document.getElementById('time-offset-reset');
+function updateResetButtonVisibility(inputId, resetButtonId, defaultValue) {
+    const inputElement = document.getElementById(inputId);
+    const resetButton = document.getElementById(resetButtonId);
 
-    if (resetBtn) {
-        resetBtn.style.display = timeOffsetValue !== 0 ? 'inline-block' : 'none';
+    if (!inputElement || !resetButton) return;
+
+    let currentValue;
+    if (inputId === 'display-area') {
+        currentValue = getDisplayAreaValue();
+    } else {
+        currentValue = parseFloat(inputElement.value) || 0;
     }
+
+    resetButton.style.display = currentValue !== defaultValue ? 'inline-block' : 'none';
+}
+
+// 更新所有重置按钮的显示状态
+function updateAllResetButtonsVisibility() {
+    updateResetButtonVisibility('time-offset', 'time-offset-reset', 0);
+    updateResetButtonVisibility('opacity', 'opacity-reset', 100);
+    updateResetButtonVisibility('font-size', 'font-size-reset', 24);
+    updateResetButtonVisibility('speed', 'speed-reset', 1.0);
+    updateResetButtonVisibility('track-spacing', 'track-spacing-reset', 8);
+    updateResetButtonVisibility('display-area', 'display-area-reset', 100);
+    updateResetButtonVisibility('weight-threshold', 'weight-threshold-reset', 5);
 }
 
 // 更新滑块显示值
@@ -248,14 +266,14 @@ function updateSliderValues() {
     }
 
     // 更新重置按钮显示状态
-    updateResetButtonVisibility();
+    updateAllResetButtonsVisibility();
 
     document.getElementById('opacity-value').textContent =
         document.getElementById('opacity').value + '%';
     document.getElementById('font-size-value').textContent =
         document.getElementById('font-size').value + 'px';
     document.getElementById('speed-value').textContent =
-        document.getElementById('speed').value + 'x';
+        parseFloat(document.getElementById('speed').value).toFixed(1) + 'x';
     document.getElementById('track-spacing-value').textContent =
         document.getElementById('track-spacing').value + 'px';
 
@@ -1455,7 +1473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('time-offset').value = sliderValue;
 
             // 更新重置按钮显示状态
-            updateResetButtonVisibility();
+            updateAllResetButtonsVisibility();
 
             saveSettings();
         });
@@ -1469,25 +1487,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('time-offset').value = sliderValue;
 
             // 更新重置按钮显示状态
-            updateResetButtonVisibility();
+            updateAllResetButtonsVisibility();
 
             saveSettings();
         });
     }
 
     // 重置按钮事件监听器
-    const timeOffsetResetBtn = document.getElementById('time-offset-reset');
-    if (timeOffsetResetBtn) {
-        timeOffsetResetBtn.addEventListener('click', () => {
-            document.getElementById('time-offset').value = 0;
-            if (timeOffsetInput) {
-                timeOffsetInput.value = 0;
-            }
-            // 重置后隐藏按钮
-            updateResetButtonVisibility();
-            saveSettings();
-        });
+    function setupResetButtonListener(buttonId, inputId, defaultValue, isDisplayArea = false) {
+        const resetButton = document.getElementById(buttonId);
+        if (resetButton) {
+            resetButton.addEventListener('click', () => {
+                if (isDisplayArea) {
+                    setDisplayAreaValue(defaultValue);
+                } else if (inputId === 'time-offset') {
+                    document.getElementById('time-offset').value = defaultValue;
+                    if (timeOffsetInput) {
+                        timeOffsetInput.value = defaultValue;
+                    }
+                } else {
+                    document.getElementById(inputId).value = defaultValue;
+                }
+                updateSliderValues();
+                saveSettings();
+            });
+        }
     }
+
+    setupResetButtonListener('time-offset-reset', 'time-offset', 0);
+    setupResetButtonListener('opacity-reset', 'opacity', 100);
+    setupResetButtonListener('font-size-reset', 'font-size', 24);
+    setupResetButtonListener('speed-reset', 'speed', 1.0);
+    setupResetButtonListener('track-spacing-reset', 'track-spacing', 8);
+    setupResetButtonListener('display-area-reset', 'display-area', 100, true);
+    setupResetButtonListener('weight-threshold-reset', 'weight-threshold', 5);
+
     document.getElementById('opacity').addEventListener('input', () => {
         updateSliderValues();
         saveSettings();
@@ -1516,7 +1550,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 设置当前按钮为选中状态
             btn.classList.add('active');
 
-            // 保存设置
+            // 更新重置按钮状态并保存设置
+            updateAllResetButtonsVisibility();
             saveSettings();
         });
     });
