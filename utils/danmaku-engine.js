@@ -18,13 +18,32 @@ class DanmakuEngine {
         this.init();
     }
 
+    // 创建VideoProxy，让弹幕速度不跟随视频倍速
+    // 当Danmaku尝试读取 playbackRate 属性时，VideoProxy会介入并始终返回 `1`。
+    // 对于所有其他属性（如 currentTime、paused 等），VideoProxy则会返回真实视频元素的值，确保弹幕的出现时机等其他功能正常。
+    createVideoProxy(video) {
+        return new Proxy(video, {
+            get(target, prop) {
+                if (prop === 'playbackRate') {
+                    return 1;
+                }
+                const value = target[prop];
+                if (typeof value === 'function') {
+                    return value.bind(target);
+                }
+                return value;
+            }
+        });
+    }
+
     init() {
         this.container.style.setProperty('--danmaku-font-size', `${this.settings.fontSize}px`);
         this.container.style.setProperty('--danmaku-opacity', this.settings.opacity / 100);
 
+        const videoProxy = this.createVideoProxy(this.video);
         this.danmaku = new Danmaku({
             container: this.container,
-            media: this.video,
+            media: videoProxy,
             engine: 'dom'
         });
 
@@ -77,12 +96,12 @@ class DanmakuEngine {
                 };
             });
 
-        // 设置CSS变量来控制字体大小
         this.container.style.setProperty('--danmaku-font-size', `${this.settings.fontSize}px`);
 
+        const videoProxy = this.createVideoProxy(this.video);
         this.danmaku = new Danmaku({
             container: this.container,
-            media: this.video,
+            media: videoProxy,
             engine: 'dom',
             comments: comments,
             speed: 144 * this.settings.speed
