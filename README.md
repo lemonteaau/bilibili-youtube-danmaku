@@ -39,9 +39,11 @@
 
 本扩展基于现代化的 **WXT 框架** 构建，支持多浏览器部署：
 
-- ✅ **Chrome** (Manifest V3) - 完全支持
-- ✅ **Firefox** (Manifest V2/V3) - 完全支持  
-- ❓ **其他 Chromium 内核浏览器** (Edge, Opera 等) - 理论支持
+- ✅ **Chrome** 
+- ✅ **Firefox** 
+- ✅ **Edge** 
+- ✅ **Safari** 
+- ❓**其他 Chromium 内核浏览器** (国内套壳浏览器, Opera 等) - 理论支持
 
 ## 📦 安装方式
 
@@ -59,20 +61,35 @@
 
 > 💡 **注意：** 优先推荐使用应用商店版本，仅在无法访问时才使用手动安装。
 
-1. 前往本项目的 [Release 页面](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/releases) 下载最新版本：
-   - 📁 `B2Y-Chrome-vX.X.X.zip` - Chrome 版本
-   - 📁 `B2Y-Firefox-vX.X.X.zip` - Firefox 版本
+1. 前往本项目的 [Release 页面](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku/releases) 下载最新版本对应的文件。
 
-2. **Chrome / Edge / Opera 安装：**
-   - 解压下载的 Chrome zip 文件
-   - 打开浏览器扩展管理页面：`chrome://extensions/`
-   - 开启"开发者模式"开关
-   - 点击"加载已解压的扩展程序"，选择解压文件夹
+#### 🌐 Chrome 浏览器
+- 下载 `B2Y-YouTube-Bilibili-Danmaku-vX.X.X-chrome.zip`
+- 解压到本地文件夹
+- 打开 `chrome://extensions/`
+- 开启"开发者模式"
+- 点击"加载已解压的扩展程序"，选择解压后的文件夹
 
-3. **Firefox 安装：**
-   - 打开 Firefox，进入 `about:debugging`
-   - 点击"此 Firefox"→"临时载入附加组件"
-   - 选择解压后的 `manifest.json` 文件
+#### 🦊 Firefox 浏览器
+- 下载 `B2Y-YouTube-Bilibili-Danmaku-vX.X.X-firefox.zip`
+- 打开 `about:debugging`
+- 点击"此 Firefox"
+- 点击"临时载入附加组件"
+- 选择下载的 ZIP 文件
+
+#### 🌊 Edge 浏览器
+- 下载 `B2Y-YouTube-Bilibili-Danmaku-vX.X.X-edge.zip`
+- 解压到本地文件夹
+- 打开 `edge://extensions/`
+- 开启"开发人员模式"
+- 点击"加载解压缩的扩展"，选择解压后的文件夹
+
+#### 🧭 Safari 浏览器
+- 下载 `B2Y-YouTube-Bilibili-Danmaku-vX.X.X-safari.zip`
+- 打开 Safari 浏览器，进入"开发" > "开发者设置" > "允许未签名的拓展"
+- 点击"添加临时扩展"
+- 选择下载的 ZIP 文件
+- 在使用前点击插件图标，允许扩展访问网页内容(如果提示)
 
 ## 🛠 开发者指南
 
@@ -121,6 +138,12 @@ bilibili-youtube-danmaku/
 ```
 
 ## 📝 更新日志
+
+### 2025-08-18
+1.1.2
+- ✨ 更换了 Web Animations API 以实现 Safari 和 Firefox 的兼容
+- ✨ 支持四个主流浏览器完整版本构建：Chrome、Firefox、Edge、Safari
+- ✨ 优化了动画性能，提供更流畅的弹幕显示体验
 
 ### 2025-08-17
 1.1.1 

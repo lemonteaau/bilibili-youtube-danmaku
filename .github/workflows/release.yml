@@ -48,12 +48,14 @@ jobs:
               if: steps.check_release.outputs.exists == 'false'
               run: |
                   VERSION=${{ steps.get_version.outputs.version }}
-                  CHROME_PACKAGE="B2Y-Chrome-v$VERSION.zip"
-                  FIREFOX_PACKAGE="B2Y-Firefox-v$VERSION.zip"
+                  CHROME_PACKAGE="B2Y-YouTube-Bilibili-Danmaku-v$VERSION-chrome.zip"
+                  FIREFOX_PACKAGE="B2Y-YouTube-Bilibili-Danmaku-v$VERSION-firefox.zip"
+                  EDGE_PACKAGE="B2Y-YouTube-Bilibili-Danmaku-v$VERSION-edge.zip"
+                  SAFARI_PACKAGE="B2Y-YouTube-Bilibili-Danmaku-v$VERSION-safari.zip"
 
                   # 构建 Chrome 版本
                   echo "🔨 构建 Chrome 扩展..."
-                  npm run build
+                  npm run build:chrome
                   
                   # 打包 Chrome 版本
                   cd .output/chrome-mv3
@@ -69,12 +71,34 @@ jobs:
                   zip -r "../../$FIREFOX_PACKAGE" .
                   cd ../..
 
+                  # 构建 Edge 版本
+                  echo "🔨 构建 Edge 扩展..."
+                  npm run build:edge
+                  
+                  # 打包 Edge 版本
+                  cd .output/edge-mv3
+                  zip -r "../../$EDGE_PACKAGE" .
+                  cd ../..
+
+                  # 构建 Safari 版本
+                  echo "🔨 构建 Safari 扩展..."
+                  npm run build:safari
+                  
+                  # 打包 Safari 版本
+                  cd .output/safari-mv2
+                  zip -r "../../$SAFARI_PACKAGE" .
+                  cd ../..
+
                   echo "✅ 扩展包创建完成:"
                   echo "📦 Chrome: $CHROME_PACKAGE"
                   echo "📦 Firefox: $FIREFOX_PACKAGE"
+                  echo "📦 Edge: $EDGE_PACKAGE"
+                  echo "📦 Safari: $SAFARI_PACKAGE"
                   
                   echo "chrome_package=$CHROME_PACKAGE" >> $GITHUB_ENV
                   echo "firefox_package=$FIREFOX_PACKAGE" >> $GITHUB_ENV
+                  echo "edge_package=$EDGE_PACKAGE" >> $GITHUB_ENV
+                  echo "safari_package=$SAFARI_PACKAGE" >> $GITHUB_ENV
 
             - name: 创建 Release
               if: steps.check_release.outputs.exists == 'false'
@@ -82,15 +106,19 @@ jobs:
                   VERSION=${{ steps.get_version.outputs.version }}
                   CHROME_PACKAGE="${{ env.chrome_package }}"
                   FIREFOX_PACKAGE="${{ env.firefox_package }}"
+                  EDGE_PACKAGE="${{ env.edge_package }}"
+                  SAFARI_PACKAGE="${{ env.safari_package }}"
 
                   # 创建 Release 并上传多浏览器包
                   gh release create "v$VERSION" \
                     --title "v$VERSION - WXT 多浏览器支持" \
                     --generate-notes \
                     "$CHROME_PACKAGE" \
-                    "$FIREFOX_PACKAGE"
+                    "$FIREFOX_PACKAGE" \
+                    "$EDGE_PACKAGE" \
+                    "$SAFARI_PACKAGE"
                     
-                  echo "✅ Release v$VERSION 创建成功，包含 Chrome 和 Firefox 版本"
+                  echo "✅ Release v$VERSION 创建成功，包含 Chrome、Firefox、Edge 和 Safari 版本"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -101,9 +129,11 @@ jobs:
                   echo "🎉 多浏览器扩展 v$VERSION 已成功构建并发布到 Release!"
                   echo "🌐 支持浏览器:"
                   echo "  ✅ Chrome (Manifest V3)"
-                  echo "  ✅ Firefox (Manifest V2)" 
+                  echo "  ✅ Firefox (Manifest V2)"
+                  echo "  ✅ Edge (Manifest V3)" 
+                  echo "  ✅ Safari (Manifest V3)"
                   echo "🛠 构建技术: WXT Framework"
-                  echo "📁 构建产物: .output/chrome-mv3/, .output/firefox-mv2/"
+                  echo "📁 构建产物: .output/chrome-mv3/, .output/firefox-mv2/, .output/edge-mv3/, .output/safari-mv2/"
 
             - name: 跳过发布提示
               if: steps.check_release.outputs.exists == 'true'
