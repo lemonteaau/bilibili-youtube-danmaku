@@ -342,14 +342,14 @@ class DanmakuEngine {
         
         const emitLoop = (currentTime) => {
             if (this.isStarted && this.video && !this.video.paused) {
-                // 控制发射频率到120fps（8ms间隔）
-                if (currentTime - this.lastEmitTime >= 8) {
+                // 控制发射频率到每秒一次
+                if (currentTime - this.lastEmitTime >= 1000) {
                     this.checkAndEmitDanmakus();
                     this.lastEmitTime = currentTime;
                 }
                 
-                // 控制清理频率到5fps
-                if (currentTime - this.lastCleanupTime >= 200) {
+                // 控制清理频率到每10秒一次
+                if (currentTime - this.lastCleanupTime >= 10000) {
                     this.cleanup();
                     this.lastCleanupTime = currentTime;
                 }
