@@ -1,5 +1,27 @@
 import Danmaku from 'danmaku/dist/esm/danmaku.dom.js';
 
+const settingHandlers = {
+    enabled: (engine, value) => {
+        if (value) engine.danmaku.show();
+        else engine.danmaku.hide();
+    },
+    opacity: (engine, value) => {
+        engine.container.style.setProperty('--danmaku-opacity', value / 100);
+    },
+    displayAreaPercentage: (engine, value) => {
+        engine.container.style.height = `${value}%`;
+        engine.danmaku.resize();
+    },
+    speed: (engine, value) => {
+        engine.danmaku.speed = 144 * value;
+    },
+    // These settings trigger a full reload
+    fontSize: 'reload',
+    trackSpacing: 'reload',
+    weightThreshold: 'reload',
+    timeOffset: 'reload'
+};
+
 class DanmakuEngine {
     constructor(container) {
         this.container = container;
@@ -10,6 +32,7 @@ class DanmakuEngine {
             opacity: 100,
             fontSize: 24,
             speed: 1.0,
+            trackSpacing: 8,
             displayAreaPercentage: 100,
             weightThreshold: 0
         };
@@ -80,19 +103,27 @@ class DanmakuEngine {
                 return weight >= this.settings.weightThreshold;
             })
             .map((d) => {
-                const finalFontSize = d.fontSize || this.settings.fontSize;
+                const { fontSize: defaultFontSize, timeOffset, trackSpacing } = this.settings;
+                const finalFontSize = d.fontSize || defaultFontSize;
+
+                const style = {
+                    color: d.color || '#ffffff',
+                    fontSize: `${finalFontSize}px`,
+                    fontFamily: "SimHei, 'Microsoft YaHei', Arial, sans-serif",
+                    fontWeight: 'bold',
+                    textShadow:
+                        '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 2px #000'
+                };
+
+                if (trackSpacing !== 8) {
+                    style.lineHeight = `${finalFontSize + trackSpacing}px`;
+                }
+
                 return {
                     text: d.text,
-                    time: d.time + this.settings.timeOffset,
-                    mode: d.mode || 'rtl', // 添加弹幕模式支持：rtl, ltr, top, bottom
-                    style: {
-                        color: d.color || '#ffffff',
-                        fontSize: `${finalFontSize}px`, // 优先使用原始字体大小，否则使用设置的字体大小
-                        fontFamily: "SimHei, 'Microsoft YaHei', Arial, sans-serif",
-                        fontWeight: 'bold',
-                        textShadow:
-                            '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 2px #000'
-                    }
+                    time: d.time + timeOffset,
+                    mode: d.mode || 'rtl',
+                    style
                 };
             });
 
@@ -114,39 +145,22 @@ class DanmakuEngine {
 
         if (!this.danmaku) return;
 
-        if (settings.hasOwnProperty('enabled')) {
-            if (this.settings.enabled) {
-                this.danmaku.show();
-            } else {
-                this.danmaku.hide();
+        let needsReload = false;
+
+        for (const key in settings) {
+            if (oldSettings[key] === this.settings[key]) {
+                continue; // Skip if value hasn't changed
+            }
+
+            const handler = settingHandlers[key];
+            if (handler === 'reload') {
+                needsReload = true;
+            } else if (typeof handler === 'function') {
+                handler(this, this.settings[key]);
             }
         }
 
-        if (settings.hasOwnProperty('opacity')) {
-            this.container.style.setProperty('--danmaku-opacity', this.settings.opacity / 100);
-        }
-
-        if (settings.hasOwnProperty('fontSize')) {
-            this.container.style.setProperty('--danmaku-font-size', `${this.settings.fontSize}px`);
-        }
-
-        if (settings.hasOwnProperty('displayAreaPercentage')) {
-            this.container.style.height = `${this.settings.displayAreaPercentage}%`;
-            this.danmaku.resize();
-        }
-
-        if (settings.hasOwnProperty('speed')) {
-            this.danmaku.speed = 144 * this.settings.speed;
-        }
-
-        if (
-            (settings.hasOwnProperty('fontSize') &&
-                oldSettings.fontSize !== this.settings.fontSize) ||
-            (settings.hasOwnProperty('weightThreshold') &&
-                oldSettings.weightThreshold !== this.settings.weightThreshold) ||
-            (settings.hasOwnProperty('timeOffset') &&
-                oldSettings.timeOffset !== this.settings.timeOffset)
-        ) {
+        if (needsReload) {
             this.loadDanmakus(this.originalDanmakus);
         }
     }
