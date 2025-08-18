@@ -111,7 +111,7 @@ jobs:
 
                   # 创建 Release 并上传多浏览器包
                   gh release create "v$VERSION" \
-                    --title "v$VERSION - WXT 多浏览器支持" \
+                    --title "v$VERSION" \
                     --generate-notes \
                     "$CHROME_PACKAGE" \
                     "$FIREFOX_PACKAGE" \
