@@ -9,11 +9,16 @@
     z-index: 10;
 }
 
+.bilibili-danmaku-stage div[style*='font-size'] {
+    font-size: var(--danmaku-font-size, 24px) !important;
+    opacity: var(--danmaku-opacity, 1) !important;
+}
+
 .bilibili-danmaku-stage > div {
     position: absolute;
     color: #fff;
     font-family: SimHei, 'Microsoft YaHei', Arial, sans-serif;
-    font-size: var(--danmaku-font-size, 24px);
+    font-size: var(--danmaku-font-size, 24px) !important;
     line-height: 1.2;
     padding: 2px 0;
     white-space: nowrap;
@@ -25,7 +30,7 @@
         1px 1px 0 #000,
         0 0 2px #000;
     pointer-events: none;
-    opacity: var(--danmaku-opacity, 1);
+    opacity: var(--danmaku-opacity, 1) !important;
     will-change: transform;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
