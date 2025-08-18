@@ -1,6 +1,6 @@
 {
     "name": "B2Y - YouTube 同步显示 Bilibili 弹幕",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "description": "自动将Bilibili的弹幕同步显示在YouTube视频上",
     "main": "background/background.js",
     "scripts": {
@@ -12,10 +12,21 @@
         "format:json": "prettier --write \"**/*.json\"",
         "dev": "wxt",
         "dev:firefox": "wxt -b firefox",
+        "dev:chrome": "wxt -b chrome",
+        "dev:edge": "wxt -b edge",
+        "dev:safari": "wxt -b safari",
         "build": "wxt build",
+        "build:all": "wxt build && wxt build -b firefox && wxt build -b edge && wxt build -b safari",
+        "build:chrome": "wxt build -b chrome",
         "build:firefox": "wxt build -b firefox",
+        "build:edge": "wxt build -b edge",
+        "build:safari": "wxt build -b safari",
         "zip": "wxt zip",
+        "zip:all": "wxt zip && wxt zip -b firefox && wxt zip -b edge && wxt zip -b safari",
+        "zip:chrome": "wxt zip -b chrome",
         "zip:firefox": "wxt zip -b firefox",
+        "zip:edge": "wxt zip -b edge",
+        "zip:safari": "wxt zip -b safari",
         "postinstall": "wxt prepare"
     },
     "devDependencies": {

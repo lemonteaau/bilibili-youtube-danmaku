@@ -15,8 +15,6 @@ class DanmakuEngine {
             weightThreshold: 0 // 弹幕权重阈值
         };
         this.video = null;
-        this.animationId = null; // 使用 requestAnimationFrame
-        this.lastFrameTime = 0;
         this.isStarted = false;
 
         // seeking/seeked 配对过滤
@@ -205,6 +203,11 @@ class DanmakuEngine {
             // 重置标记
             this.isRealSeeking = false;
         });
+        
+        // 监听播放速度变化
+        this.video.addEventListener('ratechange', () => {
+            this.handleSpeedChange(this.video.playbackRate);
+        });
     }
 
     loadDanmakus(danmakus) {
@@ -219,18 +222,24 @@ class DanmakuEngine {
             // 延迟一点再同步，确保DOM更新完成
             setTimeout(() => {
                 this.resyncDanmakus();
-                this.start();
+                this.startEmitting();
             }, 100);
         }
     }
 
     updateSettings(settings) {
-        const oldWeightThreshold = this.settings.weightThreshold;
+        const oldSettings = { ...this.settings };
         this.settings = { ...this.settings, ...settings };
 
         // 更新CSS变量
         this.stage.style.setProperty('--danmaku-font-size', `${this.settings.fontSize}px`);
         this.stage.style.setProperty('--danmaku-opacity', this.settings.opacity / 100);
+
+        // 检查速度设置变化
+        if (oldSettings.speed !== this.settings.speed) {
+            console.log(`弹幕速度变化: ${oldSettings.speed} → ${this.settings.speed}`);
+            this.updateAnimationSpeeds();
+        }
 
         // 重新初始化轨道
         this.initTracks();
@@ -241,16 +250,39 @@ class DanmakuEngine {
             this.pause();
         } else {
             // 检查weight阈值是否发生变化
-            if (oldWeightThreshold !== this.settings.weightThreshold) {
+            if (oldSettings.weightThreshold !== this.settings.weightThreshold) {
                 console.log(
-                    `Weight阈值变化: ${oldWeightThreshold} → ${this.settings.weightThreshold}`
+                    `Weight阈值变化: ${oldSettings.weightThreshold} → ${this.settings.weightThreshold}`
                 );
                 // 异步重建弹幕，避免卡顿
                 this.rebuildDanmakusAsync();
-            } else if (!this.video.paused) {
+            } else if (this.video && !this.video.paused) {
                 this.start();
             }
         }
+    }
+
+    // 更新所有动画的速度
+    updateAnimationSpeeds() {
+        this.tracks.forEach(track => {
+            track.items.forEach(item => {
+                if (item.animation) {
+                    // 计算新的duration
+                    const newDuration = item.baseDuration / this.settings.speed;
+                    
+                    // 获取当前进度
+                    const currentTime = item.animation.currentTime || 0;
+                    const oldDuration = item.animation.effect.getTiming().duration;
+                    const progress = currentTime / oldDuration;
+                    
+                    // 更新动画timing
+                    item.animation.effect.updateTiming({ duration: newDuration });
+                    
+                    // 保持相同的进度
+                    item.animation.currentTime = progress * newDuration;
+                }
+            });
+        });
     }
 
     // 异步重建弹幕，避免阻塞UI
@@ -278,22 +310,136 @@ class DanmakuEngine {
     start() {
         if (!this.settings.enabled) return;
 
-        this.pause();
         this.isStarted = true;
-        this.lastFrameTime = performance.now();
-        this.animate();
+        
+        // 恢复所有弹幕动画
+        this.tracks.forEach(track => {
+            track.items.forEach(item => {
+                if (item.animation && item.animation.playState === 'paused') {
+                    item.animation.play();
+                }
+            });
+        });
+        
+        // 启动弹幕发射器
+        this.startEmitting();
+    }
+
+    // 启动弹幕发射和清理循环
+    startEmitting() {
+        if (this.emittingInterval) {
+            clearInterval(this.emittingInterval);
+        }
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+        }
+        
+        // 使用requestAnimationFrame获得最高帧率
+        this.emittingFrameId = null;
+        this.cleanupFrameId = null;
+        this.lastEmitTime = 0;
+        this.lastCleanupTime = 0;
+        
+        const emitLoop = (currentTime) => {
+            if (this.isStarted && this.video && !this.video.paused) {
+                // 控制发射频率到120fps（8ms间隔）
+                if (currentTime - this.lastEmitTime >= 8) {
+                    this.checkAndEmitDanmakus();
+                    this.lastEmitTime = currentTime;
+                }
+                
+                // 控制清理频率到5fps
+                if (currentTime - this.lastCleanupTime >= 200) {
+                    this.cleanup();
+                    this.lastCleanupTime = currentTime;
+                }
+            }
+            
+            if (this.isStarted) {
+                this.emittingFrameId = requestAnimationFrame(emitLoop);
+            }
+        };
+        
+        this.emittingFrameId = requestAnimationFrame(emitLoop);
+    }
+
+    // 检查并发射新弹幕
+    checkAndEmitDanmakus() {
+        if (!this.video || !this.settings.enabled) return;
+
+        const currentTime = this.video.currentTime + this.settings.timeOffset;
+
+        // 发射新弹幕
+        const newDanmakus = this.danmakus.filter((d) => {
+            if (d.emitted) return false;
+
+            // weight过滤
+            if (this.settings.weightThreshold > 0) {
+                const weight = d.weight !== undefined && d.weight !== null ? d.weight : 5;
+                if (weight < this.settings.weightThreshold) {
+                    return false;
+                }
+            }
+
+            const timeDiff = d.time - currentTime;
+            return timeDiff >= -0.5 && timeDiff <= 1.0;
+        });
+
+        // 按时间排序并限制数量
+        newDanmakus
+            .sort((a, b) => a.time - b.time)
+            .slice(0, 10)
+            .forEach((danmaku) => {
+                if (!danmaku.emitted) {
+                    this.emit(danmaku);
+                    danmaku.emitted = true;
+                }
+            });
     }
 
     pause() {
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
+        this.isStarted = false;
+        
+        // 停止发射器
+        if (this.emittingInterval) {
+            clearInterval(this.emittingInterval);
+            this.emittingInterval = null;
         }
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        if (this.emittingFrameId) {
+            cancelAnimationFrame(this.emittingFrameId);
+            this.emittingFrameId = null;
+        }
+        
+        // 暂停所有弹幕动画
+        this.tracks.forEach(track => {
+            track.items.forEach(item => {
+                if (item.animation && item.animation.playState === 'running') {
+                    item.animation.pause();
+                }
+            });
+        });
     }
 
     clear() {
+        // 取消所有动画并清理DOM
+        this.tracks.forEach(track => {
+            track.items.forEach(item => {
+                if (item.animation) {
+                    item.animation.cancel();
+                }
+                if (item.elem) {
+                    item.elem.remove();
+                }
+            });
+            track.items = [];
+        });
+        
+        // 清空舞台
         this.stage.innerHTML = '';
-        this.tracks.forEach((track) => (track.items = []));
     }
 
     // 重置所有弹幕的发射状态
@@ -304,6 +450,37 @@ class DanmakuEngine {
             });
             console.log('已重置所有弹幕状态');
         }
+    }
+
+    // 处理播放速度变化
+    handleSpeedChange(newRate) {
+        console.log(`播放速度变化: ${newRate}x`);
+        
+        // Web Animations API实现：需要重新计算所有弹幕的时间进度
+        // 保持弹幕视觉速度恒定，但同步到新的播放速度
+        this.tracks.forEach(track => {
+            track.items.forEach(item => {
+                if (item.animation && item.danmaku) {
+                    // 重新计算弹幕应该的进度
+                    const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
+                    const visualElapsed = (currentVideoTime - item.danmaku.time) / newRate;
+                    const progressMs = Math.max(0, visualElapsed * 1000);
+                    const duration = item.animation.effect.getTiming().duration;
+                    
+                    if (progressMs <= duration) {
+                        item.animation.currentTime = progressMs;
+                    }
+                }
+            });
+        });
+        
+        console.log('弹幕位置已根据新播放速度重新计算');
+    }
+
+    // 计算考虑播放速度的视觉经过时间
+    calculateVisualElapsed(videoTime, danmakuStartTime, playbackRate) {
+        const realElapsed = videoTime - danmakuStartTime;
+        return realElapsed / playbackRate; // 播放速度越快，视觉经过时间越慢
     }
 
     // 重新同步弹幕显示
@@ -353,6 +530,10 @@ class DanmakuEngine {
         const elem = document.createElement('div');
         elem.textContent = danmaku.text;
         elem.style.color = danmaku.color || '#ffffff';
+        elem.style.position = 'absolute';
+        elem.style.whiteSpace = 'nowrap';
+        elem.style.pointerEvents = 'none';
+        elem.style.zIndex = '9999';
 
         // 查找可用轨道
         const track = this.findAvailableTrack();
@@ -361,131 +542,147 @@ class DanmakuEngine {
         elem.style.top = track.top + 'px';
         this.stage.appendChild(elem);
 
-        // 计算动画参数，基于视频时间
+        // 获取弹幕宽度
+        const danmakuWidth = elem.offsetWidth;
+        const stageWidth = this.stage.offsetWidth;
+        
+        // 计算动画参数  
         const baseDuration = 8000;
-        const startVideoTime = danmaku.time; // 直接使用弹幕的原始时间
+        const adjustedDuration = baseDuration / this.settings.speed;
+        const currentPlaybackRate = this.video?.playbackRate || 1.0;
+        
+        // 使用Web Animations API创建动画
+        const animation = elem.animate([
+            {
+                transform: `translateX(${stageWidth}px)`,
+                offset: 0
+            },
+            {
+                transform: `translateX(-${danmakuWidth}px)`,
+                offset: 1
+            }
+        ], {
+            duration: adjustedDuration,
+            easing: 'linear',
+            fill: 'forwards'
+        });
+        
+        // 不设置playbackRate，让弹幕速度保持恒定
+        // animation.playbackRate = currentPlaybackRate; // 移除
+        
+        // 设置动画进度到已经过的时间
+        // 弹幕视觉速度保持恒定，需要根据播放速度反算实际经过时间
+        const visualElapsed = elapsed / currentPlaybackRate; // 视觉上的经过时间
+        const progressMs = visualElapsed * 1000;
+        animation.currentTime = Math.max(0, Math.min(progressMs, adjustedDuration));
 
         const item = {
             elem: elem,
-            startVideoTime: startVideoTime,
+            animation: animation,
+            startVideoTime: danmaku.time,
             baseDuration: baseDuration,
-            width: elem.offsetWidth
+            width: danmakuWidth,
+            danmaku: danmaku
         };
 
         track.items.push(item);
-
-        // 立即设置当前位置
-        this.updateItemPosition(item);
+        return item;
     }
 
-    animate() {
-        if (!this.settings.enabled || !this.isStarted) return;
+    // Web Animations API不需要手动动画循环
+    // animate() 方法已被移除
 
-        const currentTime = performance.now();
-        const deltaTime = currentTime - this.lastFrameTime;
-
-        // 限制到120fps
-        if (deltaTime >= 8) {
-            this.update();
-            this.lastFrameTime = currentTime;
-        }
-
-        this.animationId = requestAnimationFrame(() => this.animate());
-    }
-
-    update() {
-        if (!this.video || !this.settings.enabled) return;
-
-        const currentTime = this.video.currentTime + this.settings.timeOffset;
-
-        // 发射新弹幕 - 优化发射逻辑，避免重复和爆发，增加weight过滤
-        const newDanmakus = this.danmakus.filter((d) => {
-            if (d.emitted) return false; // 已发射的跳过
-
-            // weight过滤：如果设置了阈值，过滤掉低权重弹幕
-            if (this.settings.weightThreshold > 0) {
-                const weight = d.weight !== undefined && d.weight !== null ? d.weight : 5; // 默认权重5
-                if (weight < this.settings.weightThreshold) {
-                    return false;
-                }
-            }
-
-            const timeDiff = d.time - currentTime;
-            // 扩大发射窗口，但控制在合理范围内
-            return timeDiff >= -0.5 && timeDiff <= 1.0; // 允许稍微提前发射
-        });
-
-        // 按时间排序并限制同时发射数量，避免弹幕爆发
-        newDanmakus
-            .sort((a, b) => a.time - b.time)
-            .slice(0, 10) // 每次最多发射10条弹幕
-            .forEach((danmaku) => {
-                if (!danmaku.emitted) {
-                    this.emit(danmaku);
-                    danmaku.emitted = true;
-                }
-            });
-
-        // 更新现有弹幕位置
-        this.updatePositions();
-
-        // 清理已经移出屏幕的弹幕
-        this.cleanup();
-
-        // 更新最后视频时间（用于seeking检测）
-        this.lastVideoTime = this.video.currentTime;
-    }
+    // update() 方法已被移除，功能分解到 checkAndEmitDanmakus() 和 cleanup()
 
     emit(danmaku) {
         const elem = document.createElement('div');
         elem.textContent = danmaku.text;
         elem.style.color = danmaku.color || '#ffffff';
+        elem.style.position = 'absolute';
+        elem.style.whiteSpace = 'nowrap';
+        elem.style.pointerEvents = 'none';
+        elem.style.zIndex = '9999';
+        
+        // 强制硬件加速和高性能
+        elem.style.willChange = 'transform';
+        elem.style.transform = 'translate3d(0, 0, 0)';
+        elem.style.backfaceVisibility = 'hidden';
+        elem.style.perspective = '1000px';
 
         // 查找可用轨道
         const track = this.findAvailableTrack();
         if (!track) return;
 
         elem.style.top = track.top + 'px';
-
         this.stage.appendChild(elem);
 
-        // 计算动画参数 - 使用视频时间
-        const baseDuration = 8000; // 基础8秒滚动时间
+        // 获取弹幕宽度
+        const danmakuWidth = elem.offsetWidth;
+        const stageWidth = this.stage.offsetWidth;
+        
+        // 计算动画参数
+        const baseDuration = 8000; // 基础8秒
+        const adjustedDuration = baseDuration / this.settings.speed;
+        // 移除playbackRate的影响，让弹幕速度保持恒定
+        
+        // 使用Web Animations API创建动画
+        const animation = elem.animate([
+            {
+                transform: `translateX(${stageWidth}px)`,
+                offset: 0
+            },
+            {
+                transform: `translateX(-${danmakuWidth}px)`,
+                offset: 1
+            }
+        ], {
+            duration: adjustedDuration,
+            easing: 'linear',
+            fill: 'forwards'
+        });
+        
+        // 不设置playbackRate，让弹幕速度保持恒定
+        // animation.playbackRate = currentPlaybackRate; // 移除
 
         const item = {
             elem: elem,
-            startVideoTime: this.video.currentTime + this.settings.timeOffset, // 使用视频时间
-            baseDuration: baseDuration, // 存储基础duration
-            width: elem.offsetWidth
+            animation: animation,
+            startVideoTime: this.video?.currentTime + this.settings.timeOffset || 0,
+            baseDuration: baseDuration,
+            width: danmakuWidth,
+            danmaku: danmaku
         };
 
         track.items.push(item);
-
-        // 立即设置初始位置
-        this.updateItemPosition(item);
+        return item;
     }
 
     findAvailableTrack() {
         if (!this.video) return this.tracks[0];
 
-        const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
         const stageWidth = this.stage.offsetWidth;
-        const playbackRate = this.video.playbackRate || 1.0; // 获取播放速度
+        const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
+        const playbackRate = this.video.playbackRate || 1.0;
 
         for (const track of this.tracks) {
             let available = true;
 
             for (const item of track.items) {
-                // 基于视频时间计算进度，添加播放速度补偿
-                const videoElapsed = currentVideoTime - item.startVideoTime;
-                const actualDuration = item.baseDuration / 1000 / this.settings.speed;
-                const itemProgress = videoElapsed / playbackRate / actualDuration; // 除以播放速度补偿
+                if (!item.animation || !item.danmaku) continue;
 
-                // 动态计算总移动距离
-                const totalDistance = stageWidth + item.width;
+                // 计算考虑播放速度的视觉进度
+                const visualElapsed = this.calculateVisualElapsed(
+                    currentVideoTime, 
+                    item.danmaku.time, 
+                    playbackRate
+                );
+                
+                const duration = item.animation.effect.getTiming().duration / 1000; // 转换为秒
+                const progress = Math.min(visualElapsed / duration, 1);
 
                 // 计算当前位置
-                const itemX = stageWidth - itemProgress * totalDistance;
+                const totalDistance = stageWidth + item.width;
+                const itemX = stageWidth - progress * totalDistance;
 
                 // 检查是否会重叠（保留100px间距）
                 if (itemX + item.width > stageWidth - 100) {
@@ -503,64 +700,46 @@ class DanmakuEngine {
         return this.tracks[Math.floor(Math.random() * this.tracks.length)];
     }
 
-    updatePositions() {
-        const now = Date.now();
-        const stageWidth = this.stage.offsetWidth;
+    // updatePositions() 方法已被移除，Web Animations API自动处理位置更新
 
-        this.tracks.forEach((track) => {
-            track.items.forEach((item) => {
-                this.updateItemPosition(item);
-            });
-        });
-    }
-
-    updateItemPosition(item) {
-        if (!this.video) return;
-
-        const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
-        const stageWidth = this.stage.offsetWidth;
-
-        // 基于视频时间计算进度，添加播放速度补偿
-        const videoElapsed = currentVideoTime - item.startVideoTime;
-        const actualDuration = item.baseDuration / 1000 / this.settings.speed; // 转换为秒
-        const playbackRate = this.video.playbackRate || 1.0; // 获取播放速度
-        const progress = videoElapsed / playbackRate / actualDuration; // 除以播放速度补偿
-
-        // 动态计算总移动距离
-        const totalDistance = stageWidth + item.width;
-
-        // 计算当前位置：从屏幕右侧外开始，到屏幕左侧外结束
-        const x = stageWidth - progress * totalDistance;
-
-        // 使用 translate3d 启用硬件加速
-        item.elem.style.transform = `translate3d(${x}px, 0, 0)`;
-    }
+    // updateItemPosition() 方法已被移除，Web Animations API自动处理位置计算
 
     cleanup() {
-        if (!this.video) return;
-
-        const currentVideoTime = this.video.currentTime + this.settings.timeOffset;
         const stageWidth = this.stage.offsetWidth;
-        const playbackRate = this.video.playbackRate || 1.0; // 获取播放速度
 
         this.tracks.forEach((track) => {
             track.items = track.items.filter((item) => {
-                // 基于视频时间计算进度，添加播放速度补偿
-                const videoElapsed = currentVideoTime - item.startVideoTime;
-                const actualDuration = item.baseDuration / 1000 / this.settings.speed;
-                const progress = videoElapsed / playbackRate / actualDuration; // 除以播放速度补偿
-
-                // 动态计算总移动距离
-                const totalDistance = stageWidth + item.width;
-
-                // 计算当前位置
-                const x = stageWidth - progress * totalDistance;
-
-                // 当弹幕完全移出左侧边界时才移除
-                if (x < -item.width) {
-                    item.elem.remove();
+                if (!item.animation) {
+                    // 没有动画的异常情况，直接移除
+                    if (item.elem) item.elem.remove();
                     return false;
                 }
+
+                // 检查动画状态
+                const animationState = item.animation.playState;
+                
+                // 动画完成或被取消时移除
+                if (animationState === 'finished' || animationState === 'idle') {
+                    if (item.elem) item.elem.remove();
+                    return false;
+                }
+
+                // 使用Web Animations API检查位置
+                const currentTime = item.animation.currentTime || 0;
+                const duration = item.animation.effect.getTiming().duration;
+                const progress = currentTime / duration;
+
+                // 计算当前位置
+                const totalDistance = stageWidth + item.width;
+                const x = stageWidth - progress * totalDistance;
+
+                // 当弹幕完全移出左侧边界时移除
+                if (x < -item.width || progress >= 1) {
+                    item.animation.cancel();
+                    if (item.elem) item.elem.remove();
+                    return false;
+                }
+
                 return true;
             });
         });
@@ -569,6 +748,21 @@ class DanmakuEngine {
     destroy() {
         this.pause();
         this.clear();
+        
+        // 清理所有定时器和动画帧
+        if (this.emittingInterval) {
+            clearInterval(this.emittingInterval);
+            this.emittingInterval = null;
+        }
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        if (this.emittingFrameId) {
+            cancelAnimationFrame(this.emittingFrameId);
+            this.emittingFrameId = null;
+        }
+        
         if (this.stage) {
             this.stage.remove();
         }
