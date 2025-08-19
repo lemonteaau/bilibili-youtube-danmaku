@@ -518,6 +518,78 @@ export default defineBackground(() => {
         return parser.parseDanmakuResponse(buffer);
     }
 
+    // 移除广告片段弹幕
+    async function removeAdSegments(danmakus, bvid) {
+        try {
+            const response = await fetch(`https://bsbsb.top/api/skipSegments?videoID=${bvid}`, {
+                headers: {
+                    "origin": "chrome-extension://dmkbhbnbpfijhgpnfahfioedledohfja",
+                    "x-ext-version": "1.1.5"
+                }
+            });
+
+            // 如果返回404，表示没有需要跳过的片段
+            if (response.status === 404) {
+                return danmakus;
+            }
+
+            if (!response.ok) {
+                console.warn('获取广告片段信息失败:', response.status);
+                return danmakus;
+            }
+
+            const skipSegments = await response.json();
+            
+            // 筛选出赞助（sponsor）类型的片段
+            const sponsorSegments = skipSegments
+                .filter(segment => segment.category === 'sponsor')
+                .map(segment => segment.segment)
+                .sort((a, b) => a[0] - b[0]); // 按开始时间排序
+
+            if (sponsorSegments.length === 0) {
+                return danmakus;
+            }
+
+            console.log(`发现 ${sponsorSegments.length} 个广告片段，开始处理弹幕`);
+
+            let processedDanmakus = [...danmakus];
+            let totalRemovedTime = 0;
+
+            // 处理每个广告片段
+            for (const [startTime, endTime] of sponsorSegments) {
+                const segmentDuration = endTime - startTime;
+                const adjustedStartTime = startTime - totalRemovedTime;
+                const adjustedEndTime = endTime - totalRemovedTime;
+
+                // 移除广告片段时间范围内的弹幕
+                const filteredDanmakus = processedDanmakus.filter(danmaku => 
+                    danmaku.time < adjustedStartTime || danmaku.time >= adjustedEndTime
+                );
+
+                // 将广告片段之后的弹幕时间轴向前偏移
+                const adjustedDanmakus = filteredDanmakus.map(danmaku => {
+                    if (danmaku.time >= adjustedEndTime) {
+                        return {
+                            ...danmaku,
+                            time: danmaku.time - segmentDuration
+                        };
+                    }
+                    return danmaku;
+                });
+
+                processedDanmakus = adjustedDanmakus;
+                totalRemovedTime += segmentDuration;
+            }
+
+            console.log(`广告片段处理完成，移除了 ${danmakus.length - processedDanmakus.length} 条弹幕，总计移除时长: ${totalRemovedTime.toFixed(2)}秒`);
+            
+            return processedDanmakus;
+        } catch (error) {
+            console.error('处理广告片段时出错:', error);
+            return danmakus; // 出错时返回原始弹幕
+        }
+    }
+
     // 下载所有弹幕
     async function downloadAllDanmaku(bvid) {
         try {
@@ -581,16 +653,19 @@ export default defineBackground(() => {
             // 按时间排序
             formattedDanmakus.sort((a, b) => a.time - b.time);
 
+            // 移除广告片段弹幕
+            const processedDanmakus = await removeAdSegments(formattedDanmakus, bvid);
+
             // 统计weight分布（用于调试）
-            const weightStats = {};
-            formattedDanmakus.forEach((d) => {
-                const weight = d.weight;
-                weightStats[weight] = (weightStats[weight] || 0) + 1;
-            });
-            console.log('弹幕权重分布:', weightStats);
+            // const weightStats = {};
+            // formattedDanmakus.forEach((d) => {
+            //     const weight = d.weight;
+            //     weightStats[weight] = (weightStats[weight] || 0) + 1;
+            // });
+            // console.log('弹幕权重分布:', weightStats);
 
             return {
-                danmakus: formattedDanmakus,
+                danmakus: processedDanmakus,
                 title: title,
                 duration: duration
             };
