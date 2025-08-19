@@ -519,7 +519,8 @@ export default defineBackground(() => {
     }
 
     // 移除广告片段弹幕
-    async function removeAdSegments(danmakus, bvid) {
+    async function removeAdSegments(danmakus, bvid, youtubeVideoDuration) {
+        // console.log('移除广告片段弹幕', bvid, youtubeVideoDuration);
         try {
             const response = await fetch(`https://bsbsb.top/api/skipSegments?videoID=${bvid}`, {
                 headers: {
@@ -548,6 +549,21 @@ export default defineBackground(() => {
 
             if (sponsorSegments.length === 0) {
                 return danmakus;
+            }
+
+            // 获取bilibili视频原始长度（取第一个片段的videoDuration）
+            const bilibiliVideoDuration = skipSegments[0]?.videoDuration;
+            
+            if (bilibiliVideoDuration && youtubeVideoDuration) {
+                const durationDiff = Math.abs(bilibiliVideoDuration - youtubeVideoDuration);
+                
+                if (durationDiff <= 5) {
+                    // 长度相近，YouTube可能未去sponsor，跳过处理
+                    console.log(`YouTube视频长度(${youtubeVideoDuration}s)与bilibili原始长度(${bilibiliVideoDuration}s)相近，跳过sponsor处理`);
+                    return danmakus;
+                }
+                
+                console.log(`YouTube视频长度(${youtubeVideoDuration}s)与bilibili原始长度(${bilibiliVideoDuration}s)差异较大，正常处理sponsor片段`);
             }
 
             console.log(`发现 ${sponsorSegments.length} 个广告片段，开始处理弹幕`);
@@ -591,7 +607,7 @@ export default defineBackground(() => {
     }
 
     // 下载所有弹幕
-    async function downloadAllDanmaku(bvid) {
+    async function downloadAllDanmaku(bvid, youtubeVideoDuration) {
         try {
             // 1. 获取WBI Keys
             const wbiKeys = await getWbiKeys();
@@ -654,7 +670,7 @@ export default defineBackground(() => {
             formattedDanmakus.sort((a, b) => a.time - b.time);
 
             // 移除广告片段弹幕
-            const processedDanmakus = await removeAdSegments(formattedDanmakus, bvid);
+            const processedDanmakus = await removeAdSegments(formattedDanmakus, bvid, youtubeVideoDuration);
 
             // 统计weight分布（用于调试）
             // const weightStats = {};
@@ -675,7 +691,7 @@ export default defineBackground(() => {
     }
 
     // B站空间搜索功能
-    async function searchBilibiliVideo(bilibiliUID, videoTitle) {
+    async function searchBilibiliVideo(bilibiliUID, videoTitle, youtubeVideoDuration) {
         try {
             // 繁体转简体
             const simplifiedTitle = traditionalToSimplifiedChinese(videoTitle);
@@ -1188,7 +1204,7 @@ export default defineBackground(() => {
     // 监听来自popup的消息
     browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.type === 'downloadDanmaku') {
-            downloadAllDanmaku(request.bvid)
+            downloadAllDanmaku(request.bvid, request.youtubeVideoDuration)
                 .then(async (data) => {
                     // 保存弹幕数据
                     const storageData = {
@@ -1224,7 +1240,7 @@ export default defineBackground(() => {
             return true; // 保持消息通道开启
         } else if (request.type === 'searchBilibiliVideo') {
             // 新增：B站视频搜索
-            searchBilibiliVideo(request.bilibiliUID, request.videoTitle)
+            searchBilibiliVideo(request.bilibiliUID, request.videoTitle, request.youtubeVideoDuration)
                 .then((result) => {
                     sendResponse(result);
                 })
@@ -1271,7 +1287,7 @@ export default defineBackground(() => {
                     console.log(`获取到番剧bvid: ${bvid}`);
 
                     // 使用现有的弹幕下载逻辑
-                    const data = await downloadAllDanmaku(bvid);
+                    const data = await downloadAllDanmaku(bvid, request.youtubeVideoDuration);
 
                     // 保存弹幕数据 - 使用现有的存储格式
                     const storageData = {

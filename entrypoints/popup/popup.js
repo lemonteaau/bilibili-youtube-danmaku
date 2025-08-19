@@ -295,11 +295,26 @@ async function downloadDanmaku() {
     showStatus('正在获取弹幕数据...', 'loading');
 
     try {
+        // 获取YouTube视频长度
+        let youtubeVideoDuration = null;
+        try {
+            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0]) {
+                const response = await browser.tabs.sendMessage(tabs[0].id, {
+                    type: 'getVideoDuration'
+                });
+                youtubeVideoDuration = response?.duration;
+            }
+        } catch (error) {
+            console.log('获取YouTube视频长度失败:', error);
+        }
+
         // 发送消息给background script下载弹幕
         const response = await browser.runtime.sendMessage({
             type: 'downloadDanmaku',
             bvid: bvid,
-            youtubeVideoId: youtubeVideoId
+            youtubeVideoId: youtubeVideoId,
+            youtubeVideoDuration: youtubeVideoDuration
         });
 
         if (response.success) {
@@ -1217,14 +1232,26 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
             return;
         }
 
-        console.log('下载弹幕 - BVID:', bvid, 'YouTube视频ID:', youtubeVideoId);
+        // 获取YouTube视频长度
+        let youtubeVideoDuration = null;
+        try {
+            const response = await browser.tabs.sendMessage(tab.id, {
+                type: 'getVideoDuration'
+            });
+            youtubeVideoDuration = response?.duration;
+        } catch (error) {
+            console.log('获取YouTube视频长度失败:', error);
+        }
+
+        console.log('下载弹幕 - BVID:', bvid, 'YouTube视频ID:', youtubeVideoId, 'YouTube视频长度:', youtubeVideoDuration);
 
         showStatus('正在下载弹幕...', 'loading');
 
         const response = await browser.runtime.sendMessage({
             type: 'downloadDanmaku',
             bvid: bvid,
-            youtubeVideoId: youtubeVideoId
+            youtubeVideoId: youtubeVideoId,
+            youtubeVideoDuration: youtubeVideoDuration
         });
 
         if (response.success) {

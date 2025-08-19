@@ -507,11 +507,17 @@ export default defineContentScript({
                     return;
                 }
 
+                // 获取YouTube视频长度
+                const video = document.querySelector('video');
+                const youtubeVideoDuration = video ? video.duration : null;
+                console.log('YouTube视频长度:', youtubeVideoDuration);
+
                 console.log('检测到已关联频道，自动更新弹幕...', {
                     channelId: channelInfo.channelId,
                     channelName: channelInfo.channelName,
                     videoTitle: videoTitle,
-                    bilibiliUID: association.bilibiliUID
+                    bilibiliUID: association.bilibiliUID,
+                    youtubeVideoDuration: youtubeVideoDuration
                 });
 
                 // 发送搜索请求到background script
@@ -519,7 +525,8 @@ export default defineContentScript({
                     type: 'searchBilibiliVideo',
                     bilibiliUID: association.bilibiliUID,
                     videoTitle: videoTitle,
-                    youtubeVideoId: videoId
+                    youtubeVideoId: videoId,
+                    youtubeVideoDuration: youtubeVideoDuration
                 });
 
                 if (searchResponse.success && searchResponse.results.length > 0) {
@@ -533,7 +540,8 @@ export default defineContentScript({
                         const downloadResponse = await browser.runtime.sendMessage({
                             type: 'downloadDanmaku',
                             bvid: bvid,
-                            youtubeVideoId: videoId
+                            youtubeVideoId: videoId,
+                            youtubeVideoDuration: youtubeVideoDuration
                         });
 
                         if (downloadResponse.success) {
@@ -631,6 +639,10 @@ export default defineContentScript({
                 if (danmakuEngine) {
                     danmakuEngine.updateSettings(request.settings);
                 }
+            } else if (request.type === 'getVideoDuration') {
+                const video = document.querySelector('video');
+                sendResponse({ duration: video ? video.duration : null });
+                return true;
             } else if (request.type === 'loadDanmaku') {
                 loadDanmakuForVideo(request.youtubeVideoId);
             } else if (request.type === 'seekToTime') {
