@@ -384,28 +384,64 @@ export default defineBackground(() => {
         console.error('OpenCC转换器初始化失败:', error);
     }
 
-    // 获取标题的最佳部分（处理分割符）
+    // 判断文本是否为纯英文和数字（去除标点符号后判断）
+    function isPureEnglishOrNumber(text) {
+        if (!text || typeof text !== 'string') return false;
+        
+        // 先去除所有标点符号和特殊字符，只保留字母、数字和空格
+        const cleaned = text.replace(/[^\w\s]/g, '');
+        
+        // 如果清理后为空，说明只有标点符号
+        if (!cleaned.trim()) return false;
+        
+        // 判断是否只包含英文字母、数字和空格
+        return /^[a-zA-Z0-9\s]*$/.test(cleaned);
+    }
+
+    // 从多个部分中选择最佳部分
+    function selectBestPart(parts) {
+        if (!parts || parts.length === 0) return '';
+        if (parts.length === 1) return parts[0];
+
+        // 分为纯英文数字部分和非纯英文数字部分
+        const nonPureEnglishParts = parts.filter(part => !isPureEnglishOrNumber(part));
+        const pureEnglishParts = parts.filter(part => isPureEnglishOrNumber(part));
+
+        // 优先从非纯英文数字部分中选择最长的
+        if (nonPureEnglishParts.length > 0) {
+            const bestPart = nonPureEnglishParts.reduce((longest, current) =>
+                current.length > longest.length ? current : longest
+            );
+            console.log(`选择非纯英文数字的最长部分: "${bestPart}"`);
+            return bestPart;
+        }
+
+        // 如果所有部分都是纯英文数字，则选择最长的
+        const bestPart = pureEnglishParts.reduce((longest, current) =>
+            current.length > longest.length ? current : longest
+        );
+        console.log(`所有部分都是纯英文数字，选择最长部分: "${bestPart}"`);
+        return bestPart;
+    }
+
+    // 获取标题的最佳部分（同时处理竖线和空格分割符）
     function getBestTitlePart(title) {
         if (!title || typeof title !== 'string') return title;
 
-        const separators = ['｜', '|'];
+        // 同时使用竖线和空格作为分隔符进行分割
+        const parts = title.split(/[｜|\s]+/)
+            .map(part => part.trim())
+            .filter(part => part.length > 0);
 
-        for (const separator of separators) {
-            if (title.includes(separator)) {
-                const parts = title.split(separator);
-                const longestPart = parts
-                    .map((part) => part.trim())
-                    .filter((part) => part.length > 0)
-                    .reduce((longest, current) =>
-                        current.length > longest.length ? current : longest
-                    );
-
-                console.log(`使用分割符"${separator}"，选择最长部分: "${longestPart}"`);
-                return longestPart;
-            }
+        // 如果分割后只有一个部分或无法分割，返回原标题
+        if (parts.length <= 1) {
+            return title;
         }
 
-        return title; // 没有分割符时返回原标题
+        console.log(`标题分割结果:`, parts);
+        
+        // 选择最佳部分
+        return selectBestPart(parts);
     }
 
     // 清理视频标题函数
