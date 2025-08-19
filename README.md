@@ -143,6 +143,12 @@ bilibili-youtube-danmaku/
 ## 📝 更新日志
 
 ### 2025-08-19
+1.1.5
+- ✨ 优化了标题匹配功能
+- ✨ 优化了智能搜索时的关键词
+- ✨ 增加了广告片段弹幕自动跳过功能，感谢 @[BilibiliSponsorBlock项目](https://github.com/hanydd/BilibiliSponsorBlock) ）
+
+### 2025-08-19
 1.1.3
 - ✨ 修复了部分浏览器下的弹幕闪烁问题
 - ✨ 提升了部分浏览器的性能
