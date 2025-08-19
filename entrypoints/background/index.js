@@ -444,6 +444,26 @@ export default defineBackground(() => {
         return selectBestPart(parts);
     }
 
+    // 去掉结尾的英文字符（只有去掉后还有内容时才去掉）
+    function removeTrailingEnglish(text) {
+        if (!text || typeof text !== 'string') return text;
+        
+        // 匹配结尾的英文字母、数字、空格和常见标点符号
+        const trailingEnglishRegex = /[a-zA-Z0-9\s\.,!?\-_'"():;]+$/;
+        const match = text.match(trailingEnglishRegex);
+        
+        if (match) {
+            const withoutTrailing = text.slice(0, match.index).trim();
+            // 只有去掉后还有内容时才返回去掉结尾的版本
+            if (withoutTrailing.length > 0) {
+                console.log(`去掉结尾英文: "${text}" → "${withoutTrailing}"`);
+                return withoutTrailing;
+            }
+        }
+        
+        return text; // 原样返回
+    }
+
     // 清理视频标题函数
     function cleanVideoTitle(title) {
         if (!title || typeof title !== 'string') return title;
@@ -666,14 +686,14 @@ export default defineBackground(() => {
             // 繁体转简体
             const simplifiedKeyword = traditionalToSimplifiedChinese(keyword);
             console.log(`搜索UP主: ${keyword} → ${simplifiedKeyword}`);
-
+            const finalKeyword = removeTrailingEnglish(simplifiedKeyword);
             // 获取WBI Keys
             const wbiKeys = await getWbiKeys();
 
             // 构建API参数
             const params = {
                 search_type: 'bili_user',
-                keyword: simplifiedKeyword,
+                keyword: finalKeyword,
                 page: 1,
                 order: '',
                 order_sort: '',
