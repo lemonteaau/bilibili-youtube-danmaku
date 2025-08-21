@@ -57,6 +57,29 @@
 2. 点击"添加至 Chrome"按钮
 3. 确认安装即可使用
 
+### Firefox 商店版本
+
+[![Firefox Addons](https://img.shields.io/amo/v/b2y-youtube-同步显示-bilibili-弹幕.svg)](https://addons.mozilla.org/zh-CN/firefox/addon/b2y-youtube-%E5%90%8C%E6%AD%A5%E6%98%BE%E7%A4%BA-bilibili-%E5%BC%B9%E5%B9%95/)
+
+**[🦊 点击前往 Firefox 附加组件商店安装](https://addons.mozilla.org/zh-CN/firefox/addon/b2y-youtube-%E5%90%8C%E6%AD%A5%E6%98%BE%E7%A4%BA-bilibili-%E5%BC%B9%E5%B9%95/)**
+
+1. 打开上方链接
+2. 点击"添加到 Firefox"按钮
+3. 确认安装即可使用
+
+### Edge 
+
+建议安装Chrome 商店版本
+
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/dmkbhbnbpfijhgpnfahfioedledohfja.svg)](https://chromewebstore.google.com/detail/b2y-youtube-%E5%90%8C%E6%AD%A5%E6%98%BE%E7%A4%BA-bilibili/dmkbhbnbpfijhgpnfahfioedledohfja)
+
+**[🚀 点击前往 Chrome 应用商店安装](https://chromewebstore.google.com/detail/b2y-youtube-%E5%90%8C%E6%AD%A5%E6%98%BE%E7%A4%BA-bilibili/dmkbhbnbpfijhgpnfahfioedledohfja)**
+
+### Safari
+
+暂未上架，目前仍需手动安装
+
+
 ### 手动安装（支持多浏览器）
 
 > 💡 **注意：** 优先推荐使用应用商店版本，仅在无法访问时才使用手动安装。
