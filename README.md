@@ -15,6 +15,7 @@
 - ✨ 支持设置弹幕显示区域范围
 - ✨ 支持智能弹幕过滤
 - ✨ 支持弹幕搜索和跳转时间轴
+- ✨ 支持广告片段弹幕智能跳过
 - ✨ 支持 “哔哩哔哩动画” 频道内番剧正片自动获取弹幕
 
 ## 🧩 使用方法
@@ -169,7 +170,7 @@ bilibili-youtube-danmaku/
 1.1.5
 - ✨ 优化了标题匹配功能
 - ✨ 优化了智能搜索时的关键词
-- ✨ 增加了广告片段弹幕自动跳过功能，感谢 @[BilibiliSponsorBlock项目](https://github.com/hanydd/BilibiliSponsorBlock) ）
+- ✨ 增加了广告片段弹幕自动跳过功能，感谢 @[BilibiliSponsorBlock项目](https://github.com/hanydd/BilibiliSponsorBlock) 
 
 ### 2025-08-19
 1.1.3
