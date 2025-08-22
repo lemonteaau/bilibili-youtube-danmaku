@@ -168,7 +168,7 @@ npm run zip:firefox
 - 支持通过自定义配置文件实现持久化（需要额外步骤）
 - **设置步骤**：
   1. 在Firefox中输入 `about:profiles`
-  2. 创建新配置文件 `wxt-dev-profile` 
+  2. 创建新配置文件 `wxt-dev-profile` (可为任意名称，但需要在`web-ext.config.js`文件中填写对应的Profile名称)
   3. 点击 "Launch profile in new browser"
   4. 在新窗口中登录B站并保存状态
   5. 关闭窗口，运行 `npm run dev:firefox`
