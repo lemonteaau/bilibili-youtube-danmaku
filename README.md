@@ -152,6 +152,28 @@ npm run zip
 npm run zip:firefox
 ```
 
+#### 开发环境配置
+
+为了方便开发，项目已配置持久化浏览器数据目录，这样可以保存登录状态和Cookie，避免每次启动开发环境都需要重新登录B站。
+
+配置文件：`web-ext.config.js`
+
+**Chrome/Edge 浏览器：**
+- 浏览器数据将保存在 `.wxt/chrome-data/` 目录下
+- 该目录已在 `.gitignore` 中被忽略，不会被提交到版本控制
+- 首次运行 `npm run dev` 后，登录B站的状态会被保存
+- 后续开发时无需重复登录
+
+**Firefox 浏览器：**
+- 支持通过自定义配置文件实现持久化（需要额外步骤）
+- **设置步骤**：
+  1. 在Firefox中输入 `about:profiles`
+  2. 创建新配置文件 `wxt-dev-profile` 
+  3. 点击 "Launch profile in new browser"
+  4. 在新窗口中登录B站并保存状态
+  5. 关闭窗口，运行 `npm run dev:firefox`
+- ⚠️ **重要**：直接在开发模式窗口中的登录不会被保存，必须先在正常Firefox窗口中建立登录状态
+
 ### 项目结构
 ```
 bilibili-youtube-danmaku/
