@@ -7,9 +7,12 @@
         <link rel="stylesheet" href="popup.css" />
     </head>
     <body>
-        <div>
-            <input type="checkbox" id="globalToggle" />
-            <label for="globalToggle">启用扩展</label>
+        <div class="toggle-row">
+            <label class="toggle">
+                <input type="checkbox" id="globalToggle" />
+                <span class="toggle-slider" aria-hidden="true"></span>
+                <span class="toggle-label">启用扩展</span>
+            </label>
         </div>
         <!-- 非YouTube页面的简化界面 -->
         <div class="simple-container" id="simple-container" style="display: none">
@@ -101,9 +104,10 @@
 
             <div class="controls">
                 <div class="control-group">
-                    <label>
+                    <label class="toggle">
                         <input type="checkbox" id="enable-danmaku" checked />
-                        启用弹幕
+                        <span class="toggle-slider" aria-hidden="true"></span>
+                        <span class="toggle-label">启用弹幕</span>
                     </label>
                 </div>
 
