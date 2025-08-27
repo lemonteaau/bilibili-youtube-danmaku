@@ -1,5 +1,6 @@
 // 引入频道关联管理工具
 import { channelAssociation, ChannelAssociationManager } from '../../utils/channelAssociation.js';
+import { getExtensionEnabled, setExtensionEnabled, applyNetworkAndTimerGuards, applyStorageGuards } from '../../utils/globalToggle.js';
 
 // 获取当前标签页信息
 async function getCurrentTab() {
@@ -1349,7 +1350,7 @@ browser.runtime
 // 检查是否为YouTube页面并切换界面
 async function checkPageTypeAndToggleUI() {
     const tab = await getCurrentTab();
-    const isYouTubePage = tab && tab.url && tab.url.includes('youtube.com');
+    const isYouTubePage = tab && tab.url && /:\/\/(?:www\.)?youtube\.com\/watch/.test(tab.url);
 
     const simpleContainer = document.getElementById('simple-container');
     const mainContainer = document.getElementById('main-container');
@@ -1427,6 +1428,37 @@ function openYouTube() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize global toggle UI
+    try {
+        const toggleEl = document.getElementById('globalToggle');
+        if (toggleEl) {
+            const enabled = await getExtensionEnabled();
+            toggleEl.checked = !!enabled;
+            applyNetworkAndTimerGuards(!enabled);
+            applyStorageGuards(!enabled);
+            toggleEl.addEventListener('change', async () => {
+                const enabledNow = !!toggleEl.checked;
+                await setExtensionEnabled(enabledNow);
+                try {
+                    await browser.runtime.sendMessage({
+                        type: 'EXTENSION_GLOBAL_TOGGLE',
+                        enabled: enabledNow
+                    });
+                } catch (e) {}
+                applyNetworkAndTimerGuards(!enabledNow);
+                applyStorageGuards(!enabledNow);
+                if (!enabledNow) {
+                    // Stop further initialization when disabled
+                    // Optionally, we could close the popup or simply return.
+                }
+            });
+            // If disabled at load, stop further initialization
+            if (!enabled) {
+                return;
+            }
+        }
+    } catch (e) {}
+
     // 首先检查页面类型并切换界面
     const isYouTubePage = await checkPageTypeAndToggleUI();
 
