@@ -891,10 +891,18 @@ export default defineContentScript({
 
         function teardownDisabledState() {
             // 停止广告监控
-            try { stopAdStatusMonitoring(); } catch (e) {}
+            try { 
+                stopAdStatusMonitoring(); 
+            } catch (e) {
+                console.error('Error stopping ad status monitoring:', e);
+            }
             // 销毁引擎
             if (danmakuEngine) {
-                try { danmakuEngine.destroy(); } catch (e) {}
+                try { 
+                    danmakuEngine.destroy(); 
+                } catch (e) {
+                    console.error('Error destroying danmaku engine:', e);
+                }
                 danmakuEngine = null;
             }
             teardownUrlObserver();
