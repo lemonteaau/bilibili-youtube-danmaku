@@ -2,7 +2,7 @@
 
 // 导入番剧处理模块
 import { searchBilibiliBangumi, findEpisodeByNumber, getBangumiEpisodeDetail } from './bangumi.js';
-import { getExtensionEnabled, applyNetworkAndTimerGuards, applyStorageGuards, forwardToggleToAllTabs } from '../../utils/globalToggle.js';
+import { getExtensionEnabled, applyNetworkAndTimerGuards, applyStorageGuards, forwardToggleToAllTabs, updateExtensionIcon } from '../../utils/globalToggle.js';
 // 引入protobuf解析器和OpenCC库
 import '../../lib/protobuf-parser.js';
 import '../../lib/opencc.min.js';
@@ -35,6 +35,7 @@ export default defineBackground(() => {
             clearCleanupInterval();
         }
         forwardToggleToAllTabs(extensionEnabled);
+        updateExtensionIcon(extensionEnabled);
     }
 
     // 初始化：加载总开关状态并应用守卫

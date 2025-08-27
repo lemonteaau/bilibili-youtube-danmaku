@@ -1,6 +1,6 @@
 // 引入频道关联管理工具
 import { channelAssociation, ChannelAssociationManager } from '../../utils/channelAssociation.js';
-import { getExtensionEnabled, setExtensionEnabled, applyNetworkAndTimerGuards, applyStorageGuards } from '../../utils/globalToggle.js';
+import { getExtensionEnabled, setExtensionEnabled, applyNetworkAndTimerGuards, applyStorageGuards, updateExtensionIcon } from '../../utils/globalToggle.js';
 
 // 获取当前标签页信息
 async function getCurrentTab() {
@@ -1436,6 +1436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             toggleEl.checked = !!enabled;
             applyNetworkAndTimerGuards(!enabled);
             applyStorageGuards(!enabled);
+            updateExtensionIcon(enabled);
             toggleEl.addEventListener('change', async () => {
                 const enabledNow = !!toggleEl.checked;
                 await setExtensionEnabled(enabledNow);
@@ -1447,6 +1448,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } catch (e) {}
                 applyNetworkAndTimerGuards(!enabledNow);
                 applyStorageGuards(!enabledNow);
+                updateExtensionIcon(enabledNow);
                 if (!enabledNow) {
                     // Stop further initialization when disabled
                     // Optionally, we could close the popup or simply return.

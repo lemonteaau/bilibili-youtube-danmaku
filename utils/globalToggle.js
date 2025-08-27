@@ -139,4 +139,33 @@ export function forwardToggleToAllTabs(enabled) {
 	} catch (e) {}
 }
 
+// Icon switching utilities
+export function updateExtensionIcon(enabled) {
+	try {
+		const iconPath = enabled ? {
+			16: 'icon-16.png',
+			48: 'icon-48.png',
+			128: 'icon-128.png'
+		} : {
+			16: 'icon-16-off.png',
+			48: 'icon-48-off.png',
+			128: 'icon-128-off.png'
+		};
+
+		if (browser.action && browser.action.setIcon) {
+			browser.action.setIcon({ path: iconPath }).catch(() => {
+				// Fallback for older browsers
+				if (browser.browserAction && browser.browserAction.setIcon) {
+					browser.browserAction.setIcon({ path: iconPath }).catch(() => {});
+				}
+			});
+		} else if (browser.browserAction && browser.browserAction.setIcon) {
+			// For Manifest V2 compatibility
+			browser.browserAction.setIcon({ path: iconPath }).catch(() => {});
+		}
+	} catch (e) {
+		console.warn('Failed to update extension icon:', e);
+	}
+}
+
 
