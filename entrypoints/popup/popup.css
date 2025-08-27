@@ -58,6 +58,20 @@ body {
     padding: 16px;
 }
 
+/* Disabled state for containers when extension is off */
+#main-container.disabled,
+#simple-container.disabled {
+    opacity: 0.5;
+    filter: grayscale(0.2);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Always allow interacting with the global toggle row */
+.toggle-row {
+    pointer-events: auto;
+}
+
 h1 {
     margin: 0 0 16px 0;
     font-size: 18px;

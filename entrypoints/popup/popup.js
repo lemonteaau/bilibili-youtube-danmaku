@@ -132,6 +132,24 @@ function showStatus(message, type = 'loading') {
     }
 }
 
+// 切换弹窗UI的启用/禁用状态（不影响全局开关本身）
+function setPopupEnabledUI(enabled) {
+    try {
+        const mainContainer = document.getElementById('main-container');
+        const simpleContainer = document.getElementById('simple-container');
+        [mainContainer, simpleContainer].forEach((el) => {
+            if (!el) return;
+            if (enabled) {
+                el.classList.remove('disabled');
+                el.removeAttribute('aria-disabled');
+            } else {
+                el.classList.add('disabled');
+                el.setAttribute('aria-disabled', 'true');
+            }
+        });
+    } catch (e) {}
+}
+
 // 更新弹幕信息
 function updateDanmakuInfo(count) {
     const info = document.getElementById('danmaku-info');
@@ -1437,6 +1455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             applyNetworkAndTimerGuards(!enabled);
             applyStorageGuards(!enabled);
             updateExtensionIcon(enabled);
+            setPopupEnabledUI(!!enabled);
             toggleEl.addEventListener('change', async () => {
                 const enabledNow = !!toggleEl.checked;
                 await setExtensionEnabled(enabledNow);
@@ -1449,6 +1468,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 applyNetworkAndTimerGuards(!enabledNow);
                 applyStorageGuards(!enabledNow);
                 updateExtensionIcon(enabledNow);
+                setPopupEnabledUI(enabledNow);
+                if (enabledNow) {
+                    // 重新启用后，刷新一次以完成全部初始化
+                    window.location.reload();
+                }
                 if (!enabledNow) {
                     // Stop further initialization when disabled
                     // Optionally, we could close the popup or simply return.
@@ -1456,6 +1480,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             // If disabled at load, stop further initialization
             if (!enabled) {
+                // 仍然根据页面类型切换界面，并初始化社交图标
+                try {
+                    await checkPageTypeAndToggleUI();
+                    await initSocialIcons();
+                } catch (e) {}
                 return;
             }
         }
