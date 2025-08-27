@@ -1182,3 +1182,20 @@ label.toggle {
 .search-item.user-item .search-item-cover img {
     border-radius: 50%;
 }
+
+/* 切换动画控制：默认禁用，仅在用户交互时启用 */
+.toggle-slider {
+    transition: none;
+}
+
+.toggle-slider::before {
+    transition: none;
+}
+
+body.toggle-animate .toggle-slider {
+    transition: background-color 0.2s ease;
+}
+
+body.toggle-animate .toggle-slider::before {
+    transition: transform 0.2s ease;
+}

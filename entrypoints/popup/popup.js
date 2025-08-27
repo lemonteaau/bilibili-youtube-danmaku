@@ -1365,6 +1365,38 @@ browser.runtime
         console.log('通知background失败:', error);
     });
 
+// 控制开关动画：仅在用户交互时启用
+let toggleAnimationTimeout = null;
+function triggerToggleAnimation() {
+    try {
+        document.body.classList.add('toggle-animate');
+        if (toggleAnimationTimeout) clearTimeout(toggleAnimationTimeout);
+        toggleAnimationTimeout = setTimeout(() => {
+            document.body.classList.remove('toggle-animate');
+            toggleAnimationTimeout = null;
+        }, 300);
+    } catch (e) {}
+}
+
+function attachToggleAnimationHandlers(inputEl) {
+    if (!inputEl) return;
+    const labelEl = inputEl.closest('label.toggle');
+    const pointerTarget = labelEl || inputEl;
+    try {
+        pointerTarget.addEventListener('pointerdown', triggerToggleAnimation);
+    } catch (e) {
+        try {
+            pointerTarget.addEventListener('mousedown', triggerToggleAnimation);
+        } catch (e2) {}
+    }
+    inputEl.addEventListener('keydown', (e) => {
+        const key = e.key || e.code;
+        if (key === ' ' || key === 'Spacebar' || key === 'Space' || key === 'Enter') {
+            triggerToggleAnimation();
+        }
+    });
+}
+
 // 检查是否为YouTube页面并切换界面
 async function checkPageTypeAndToggleUI() {
     const tab = await getCurrentTab();
@@ -1452,6 +1484,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (toggleEl) {
             const enabled = await getExtensionEnabled();
             toggleEl.checked = !!enabled;
+            attachToggleAnimationHandlers(toggleEl);
             applyNetworkAndTimerGuards(!enabled);
             applyStorageGuards(!enabled);
             updateExtensionIcon(enabled);
@@ -1505,6 +1538,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     await loadSettings();
+    attachToggleAnimationHandlers(document.getElementById('enable-danmaku'));
     await checkCurrentPageDanmaku();
 
     // 获取并显示页面信息
