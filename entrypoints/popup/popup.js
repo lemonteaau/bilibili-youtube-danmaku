@@ -1,6 +1,12 @@
 // 引入频道关联管理工具
 import { channelAssociation, ChannelAssociationManager } from '../../utils/channelAssociation.js';
-import { getExtensionEnabled, setExtensionEnabled, applyNetworkAndTimerGuards, applyStorageGuards, updateExtensionIcon } from '../../utils/globalToggle.js';
+import {
+    getExtensionEnabled,
+    setExtensionEnabled,
+    applyNetworkAndTimerGuards,
+    applyStorageGuards,
+    updateExtensionIcon
+} from '../../utils/globalToggle.js';
 
 // 获取当前标签页信息
 async function getCurrentTab() {
@@ -147,7 +153,9 @@ function setPopupEnabledUI(enabled) {
                 el.setAttribute('aria-disabled', 'true');
             }
         });
-    } catch (e) {}
+    } catch (e) {
+        console.error('Error in setPopupEnabledUI:', e);
+    }
 }
 
 // 更新弹幕信息
@@ -1262,7 +1270,14 @@ async function downloadDanmakuFromBV(bvid, youtubeVideoId = null) {
             console.log('获取YouTube视频长度失败:', error);
         }
 
-        console.log('下载弹幕 - BVID:', bvid, 'YouTube视频ID:', youtubeVideoId, 'YouTube视频长度:', youtubeVideoDuration);
+        console.log(
+            '下载弹幕 - BVID:',
+            bvid,
+            'YouTube视频ID:',
+            youtubeVideoId,
+            'YouTube视频长度:',
+            youtubeVideoDuration
+        );
 
         showStatus('正在下载弹幕...', 'loading');
 
