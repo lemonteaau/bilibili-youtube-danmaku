@@ -704,8 +704,9 @@ export default defineBackground(() => {
                     d.color && typeof d.color === 'number'
                         ? `#${d.color.toString(16).padStart(6, '0')}`
                         : '#ffffff', // 默认白色
-                mode: d.mode === 1 ? 'rtl' : d.mode === 4 ? 'bottom' : 'top',
-                weight: d.weight !== undefined && d.weight !== null ? d.weight : 5 // 添加权重字段，默认5
+                mode: d.mode === 1 ? 'rtl' : d.mode === 4 ? 'bottom' : d.mode === 5 ? 'top' : 'rtl', // 1=滚动, 4=底部, 5=顶部, 其他=滚动
+                weight: d.weight !== undefined && d.weight !== null ? d.weight : 5, // 添加权重字段，默认5
+                fontSize: d.fontsize || 25 // 添加字体大小，B站默认25
             }));
 
             // 按时间排序
