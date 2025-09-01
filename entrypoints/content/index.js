@@ -1,7 +1,11 @@
 import './danmaku.css';
 import { channelAssociation } from '../../utils/channelAssociation.js';
 import DanmakuEngine from '../../utils/danmaku-engine.js';
-import { getExtensionEnabled, applyNetworkAndTimerGuards, applyStorageGuards } from '../../utils/globalToggle.js';
+import {
+    getExtensionEnabled,
+    applyNetworkAndTimerGuards,
+    applyStorageGuards
+} from '../../utils/globalToggle.js';
 
 export default defineContentScript({
     matches: ['*://*.youtube.com/*'],
@@ -338,6 +342,9 @@ export default defineContentScript({
 
         // 初始化弹幕引擎
         async function initDanmakuEngine() {
+            if (!extensionEnabled) {
+                return;
+            }
             const container = findVideoContainer();
             if (!container) {
                 console.log('未找到视频容器');
@@ -609,7 +616,9 @@ export default defineContentScript({
 
         function teardownUrlObserver() {
             if (urlObserver) {
-                try { urlObserver.disconnect(); } catch (e) {}
+                try {
+                    urlObserver.disconnect();
+                } catch (e) {}
                 urlObserver = null;
             }
         }
@@ -641,6 +650,7 @@ export default defineContentScript({
 
                 // 延迟初始化，等待页面加载
                 setTimeout(async () => {
+                    if (!extensionEnabled) return;
                     await initDanmakuEngine();
                     // 初始化完成后更新页面信息
                     await updateCurrentPageInfo();
@@ -881,25 +891,31 @@ export default defineContentScript({
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
                     if (!extensionEnabled) return;
-                    setTimeout(initDanmakuEngine, 1000);
+                    setTimeout(() => {
+                        if (!extensionEnabled) return;
+                        initDanmakuEngine();
+                    }, 1000);
                 });
             } else {
                 if (!extensionEnabled) return;
-                setTimeout(initDanmakuEngine, 1000);
+                setTimeout(() => {
+                    if (!extensionEnabled) return;
+                    initDanmakuEngine();
+                }, 1000);
             }
         }
 
         function teardownDisabledState() {
             // 停止广告监控
-            try { 
-                stopAdStatusMonitoring(); 
+            try {
+                stopAdStatusMonitoring();
             } catch (e) {
                 console.error('Error stopping ad status monitoring:', e);
             }
             // 销毁引擎
             if (danmakuEngine) {
-                try { 
-                    danmakuEngine.destroy(); 
+                try {
+                    danmakuEngine.destroy();
                 } catch (e) {
                     console.error('Error destroying danmaku engine:', e);
                 }
@@ -912,12 +928,16 @@ export default defineContentScript({
         browser.runtime.onMessage.addListener((request) => {
             if (request && request.type === 'EXTENSION_GLOBAL_TOGGLE') {
                 extensionEnabled = !!request.enabled;
-                applyNetworkAndTimerGuards(!extensionEnabled);
-                applyStorageGuards(!extensionEnabled);
                 if (extensionEnabled) {
+                    // Re-enable: remove guards first, then start features
+                    applyNetworkAndTimerGuards(false);
+                    applyStorageGuards(false);
                     startEnabledFeatures();
                 } else {
+                    // Disable: teardown first while clearInterval/clearTimeout still original
                     teardownDisabledState();
+                    applyNetworkAndTimerGuards(true);
+                    applyStorageGuards(true);
                 }
             }
         });
