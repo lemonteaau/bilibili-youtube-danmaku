@@ -41,5 +41,6 @@
         "chrome-extension"
     ],
     "author": "",
-    "license": "MIT"
+    "license": "MIT",
+    "packageManager": "pnpm@12.9.1"
 }

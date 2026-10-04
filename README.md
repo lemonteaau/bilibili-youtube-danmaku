@@ -155,23 +155,23 @@
 
 ```bash
 # 安装依赖
-npm install
+pnpm install
 
 # Chrome 开发模式（支持热重载）
-npm run dev
+pnpm run dev
 
 # Firefox 开发模式
-npm run dev:firefox
+pnpm run dev:firefox
 
 # 生产构建
-npm run build
+pnpm run build
 
 # Firefox 构建
-npm run build:firefox
+pnpm run build:firefox
 
 # 打包扩展文件
-npm run zip
-npm run zip:firefox
+pnpm run zip
+pnpm run zip:firefox
 ```
 
 #### 开发环境配置
@@ -183,7 +183,7 @@ npm run zip:firefox
 **Chrome/Edge 浏览器：**
 - 浏览器数据将保存在 `.wxt/chrome-data/` 目录下
 - 该目录已在 `.gitignore` 中被忽略，不会被提交到版本控制
-- 首次运行 `npm run dev` 后，登录B站的状态会被保存
+- 首次运行 `pnpm run dev` 后，登录B站的状态会被保存
 - 后续开发时无需重复登录
 
 **Firefox 浏览器：**
@@ -193,7 +193,7 @@ npm run zip:firefox
   2. 创建新配置文件 `wxt-dev-profile` (可为任意名称，但需要在`web-ext.config.js`文件中填写对应的Profile名称)
   3. 点击 "Launch profile in new browser"
   4. 在新窗口中登录B站并保存状态
-  5. 关闭窗口，运行 `npm run dev:firefox`
+  5. 关闭窗口，运行 `pnpm run dev:firefox`
 - ⚠️ **重要**：直接在开发模式窗口中的登录不会被保存，必须先在正常Firefox窗口中建立登录状态
 
 ### 项目结构

@@ -40,9 +40,18 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: pnpm
+
             - name: 安装依赖
               if: steps.check_release.outputs.exists == 'false'
-              run: npm ci
+              run: pnpm install --frozen-lockfile
 
             - name: 创建多浏览器扩展包
               if: steps.check_release.outputs.exists == 'false'
@@ -55,7 +64,7 @@ jobs:
 
                   # 构建 Chrome 版本
                   echo "🔨 构建 Chrome 扩展..."
-                  npm run build:chrome
+                  pnpm run build:chrome
 
                   # 打包 Chrome 版本
                   cd .output/chrome-mv3
@@ -64,7 +73,7 @@ jobs:
 
                   # 构建 Firefox 版本  
                   echo "🔨 构建 Firefox 扩展..."
-                  npm run build:firefox
+                  pnpm run build:firefox
 
                   # 打包 Firefox 版本
                   cd .output/firefox-mv2
@@ -73,7 +82,7 @@ jobs:
 
                   # 构建 Edge 版本
                   echo "🔨 构建 Edge 扩展..."
-                  npm run build:edge
+                  pnpm run build:edge
 
                   # 打包 Edge 版本
                   cd .output/edge-mv3
@@ -82,7 +91,7 @@ jobs:
 
                   # 构建 Safari 版本
                   echo "🔨 构建 Safari 扩展..."
-                  npm run build:safari
+                  pnpm run build:safari
 
                   # 打包 Safari 版本
                   cd .output/safari-mv2
